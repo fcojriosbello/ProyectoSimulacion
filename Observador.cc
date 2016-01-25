@@ -1,121 +1,222 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include <ns3/core-module.h>
-#include "ns3/point-to-point-module.h"
-#include "ns3/onoff-application.h"
-#include "ns3/packet-sink.h"
-#include <ns3/average.h>
+#include <ns3/ethernet-header.h>
 #include "Observador.h"
+
 
 NS_LOG_COMPONENT_DEFINE ("Observador");
 
-Observador::Observador (ApplicationContainer clientes, Ptr<Application> sumidero)
+
+Observador::Observador ()
 {
   NS_LOG_FUNCTION_NOARGS ();
-  NS_LOG_FUNCTION ("En-----> Constructor de Observador");
 
- // Inicializamos las variables y reseteamos los acumuladores
- totalPaquetes      = 0;
- paqueteRechazado   = 0;
- listaVacia         = false;
- m_clientes         = clientes;
- aplicacion_sumidero = sumidero->GetObject<PacketSink>();
- acumulador_intervalo.Reset();
+  m_nodo = 0;
+  Reset();
+}
 
- /* Obtenemos un iterador que nos permitirá recorrer las distintas aplicaciones
-    para subscribirlas a la traza. Con este iterador podemos obtener las aplicaciones On/Off con el método
-    GetObject */
- ApplicationContainer::Iterator i;
- for (i = m_clientes.Begin(); i != m_clientes.End(); ++i)
+//Funcion que maneja la traza MacTxBackoff
+void
+Observador::EnvioRetrasado (Ptr<const Packet> paquete)
+{
+  NS_LOG_FUNCTION (paquete);
+
+
+  // Obtengo una copia del paquete
+  Ptr<Packet> copia = paquete->Copy();
+
+  EthernetHeader header;
+  // Quitamos la cabecera del paquete y la guardamos en header.
+  copia->RemoveHeader (header);
+
+  // Comprobamos que sea un paquete ip (contiene el paquete eco).
+  if (header.GetLengthType() == 0x0800)
   {
-    Ptr<Application> aplicacion = *i;
-    // Obtenemos las aplicaciones on/off
-    Ptr<OnOffApplication> aplicacion_onoff = aplicacion->GetObject<OnOffApplication>();
-    // Las subscribimos a la traza Tx
-    aplicacion_onoff->TraceConnectWithoutContext("Tx", MakeCallback(&Observador::TiempoEnvio, this));
+    NS_LOG_DEBUG ("NODO " << m_nodo <<"-> Se ha retrasado el envio de un paquete debido al proceso de backoff.");
+    m_numIntentos ++;
+    NS_LOG_DEBUG ("Numero de intentos: " << m_numIntentos);
   }
-  //Subscribimos a la traza Rx la aplicación Sumidero
-  aplicacion_sumidero->GetObject<PacketSink>()->TraceConnectWithoutContext("Rx", MakeCallback(&Observador::TiempoRecepcion, this));
 }
 
-// Método encargado de traza Tx
-void Observador::TiempoEnvio(Ptr<const Packet> paquete)
+//Funcion que maneja la traza PhyTxDrop
+void
+Observador::EnvioDescartado (Ptr<const Packet> paquete)
 {
-  NS_LOG_FUNCTION ("En-----> TiempoEnvio de Observador");
+  NS_LOG_FUNCTION (paquete);
 
-  // Obtenemos el identificador del paquete
-  uint64_t identificador = paquete->GetUid();
-  map_lista[identificador] = Simulator::Now();
-  NS_LOG_INFO("Nuevo paquete creado y enviado");
-  totalPaquetes++;
-  listaVacia=false;
-}
+  // Obtengo una copia del paquete
+  Ptr<Packet> copia = paquete->Copy();
 
-// Método encargado de traza Rx
-void Observador::TiempoRecepcion(Ptr<const Packet> paquete, const Address &)
-{
-  NS_LOG_FUNCTION ("En-----> TiempoRecepcion de Observador");
-  // Obtenemos el identificador del paquete
-  uint64_t identificador = paquete->GetUid();
-  // Creamos el iterador que nos permitirá buscar el paquete en la lista
-  std::map <uint64_t, Time>::iterator iterador = map_lista.find(identificador);
+  EthernetHeader header;
+  // Quitamos la cabecera del paquete y la guardamos en header.
+  copia->RemoveHeader (header);
 
-  if (iterador != map_lista.end())
+  // Comprobamos que sea un paquete ip (contiene el paquete eco).
+  if (header.GetLengthType() == 0x0800)
   {
-    Time retardo = Simulator::Now() - map_lista[identificador];
-    acumulador_intervalo.Update(retardo.GetDouble());
-    NS_LOG_DEBUG("Paquete recibido con un retardo de " << retardo.GetDouble()/1000 << "ms");
-    map_lista.erase(iterador);
+    NS_LOG_DEBUG("NODO " << m_nodo <<"-> Se ha descartado el envio de un paquete porque ha llegado al maximo numero de intentos.");
+    m_numIntentos = 0;
+
+    //Aumentamos el numero de paquetes perdidos
+    m_numPktsPerdidos++;
   }
-  else
-    NS_LOG_DEBUG ("El paquete con identificador " << identificador << " no se encuentra en la estructura.");
 }
 
-double Observador::GetRetardo()
+//Funcion que maneja la traza PhyTxEnd
+void
+Observador::EnvioTerminado (Ptr<const Packet> paquete)
 {
-  NS_LOG_FUNCTION ("En-----> GetRetardo de Observador");
-  return acumulador_intervalo.Mean();
-}
+  NS_LOG_FUNCTION (paquete);
 
-double Observador::GetPaquetesCorrectos()
-{
-  NS_LOG_FUNCTION ("En-----> GetPaquetesCorrectos de Observador");
-  return totalPaquetes;
-}
 
-double Observador::GetListaVacia()
-{
-  NS_LOG_FUNCTION ("En-----> GetListaVacia de Observador");
+  // Obtengo una copia del paquete
+  Ptr<Packet> copia = paquete->Copy();
 
-  if(map_lista.size() == 0){
-    NS_LOG_WARN("La lista está vacía");
-    listaVacia == true;
+  EthernetHeader header;
+  // Quitamos la cabecera del paquete y la guardamos en header.
+  copia->RemoveHeader (header);
+
+  // Comprobamos que sea un paquete ip (contiene el paquete eco).
+  if (header.GetLengthType() == 0x0800)
+  {
+    m_numIntentos ++;
+    NS_LOG_DEBUG ("NODO " << m_nodo <<"-> Se ha terminado el proceso de envio de un paquete en el nodo.");
+    NS_LOG_DEBUG ("Numero de intentos: " << m_numIntentos);
+    m_acIntentos.Update(m_numIntentos);
+    m_numIntentos = 0;
   }
-  else{
-    NS_LOG_WARN("La lista no está vacía");
-    listaVacia == false;
+}
+
+//Funcion que maneja la traza MacTx
+void 
+Observador::OrdenEnvio (Ptr<const Packet> paquete)
+{
+  NS_LOG_FUNCTION(paquete);
+
+  // Obtengo una copia del paquete
+  Ptr<Packet> copia = paquete->Copy();
+
+  EthernetHeader header;
+  // Quitamos la cabecera del paquete y la guardamos en header.
+  copia->RemoveHeader (header);
+
+  // Comprobamos que sea un paquete ip (contiene el paquete eco).
+  if (header.GetLengthType() == 0x0800)
+  {
+    NS_LOG_DEBUG("NODO " << m_nodo <<"-> Se ha recibido la orden de envio de un paquete ECO.");
+    m_tiempoInicial = Simulator::Now().GetNanoSeconds();
+
+    //Aumentamos el numero de peticiones de transmision
+    m_numPeticionesTx++;
   }
 
-  NS_LOG_DEBUG("Tamaño de la lista " << (unsigned int) map_lista.size());
-
-  return listaVacia;
 }
 
-void Observador::PaqueteRechazado(Ptr<const Packet> paquete)
+//Funcion que maneja la traza MacRx
+void
+Observador::OrdenPktDisponible (Ptr<const Packet> paquete)
 {
-NS_LOG_FUNCTION("Se ha tirado un paquete");
-paqueteRechazado++;
+  NS_LOG_FUNCTION(paquete);
 
-// Obtenemos el identificador del paquete
-uint64_t identificador = paquete->GetUid();
-// Creamos el iterador que nos permitirá buscar el paquete en la lista
-std::map <uint64_t, Time>::iterator iterador = map_lista.find(identificador);
+  int64_t transcurrido = 0.0;
 
-if (iterador != map_lista.end())
-  map_lista.erase(iterador);
+  // Obtengo una copia del paquete
+  Ptr<Packet> copia = paquete->Copy();
+
+  EthernetHeader header;
+  // Quitamos la cabecera del paquete y la guardamos en header.
+  copia->RemoveHeader (header);
+
+  // Comprobamos que sea un paquete ip (contiene el paquete eco).
+  if (header.GetLengthType() == 0x0800)
+  {
+    NS_LOG_DEBUG("NODO " << m_nodo <<"-> Dispone de un paquete ECO para su entrega al nivel de aplicaion.");
+
+    transcurrido = Simulator::Now().GetNanoSeconds() - m_tiempoInicial;
+    m_acTiempos.Update(transcurrido);
+
+    NS_LOG_DEBUG("Tiempo de ECO: " << (double)transcurrido/1e6 << " ms");
+  }
 }
 
-double Observador::GetPorcentajePaquetesRechazados()
+//Devuelve el número medio de intentos necesarios para 
+//transmitir efectivamente un paquete del nodo asociado 
+//al objeto Observador.
+double 
+Observador::GetMediaIntentos ()
 {
-  return ((double)paqueteRechazado/(double)totalPaquetes)*100;
+  NS_LOG_FUNCTION_NOARGS ();
+
+  double result = -1;
+
+  //Comprobamos que se haya realizado correctamente algun envio
+  if (m_acIntentos.Count() > 0)
+    result = m_acIntentos.Mean();
+
+  return result;
+
 }
+
+//Devuelve el tiempo medio de ECO del nodo asociado al
+//objeto Observador. Se devuelve en ns.
+double
+Observador::GetMediaTiempos ()
+{
+  NS_LOG_FUNCTION_NOARGS ();
+
+  double result = -1;
+
+  //Comprobamos que se haya realizado correctamente algun envio
+  if (m_acTiempos.Count() > 0)
+    result = m_acTiempos.Mean();
+
+  return result;
+}
+
+//Devuelve el porcentaje de paquetes perdidos al llegar al 
+//numero maximo de intentos configurado.
+double  
+Observador::GetPorcentajePktsPerdidos()
+{
+  NS_LOG_FUNCTION_NOARGS ();
+
+  double result = -1;
+
+  if (m_numPeticionesTx > 0)
+    result = 100*(double)m_numPktsPerdidos / (double)m_numPeticionesTx;
+
+  return result;
+}
+
+
+//Funcion para resetear variables y objetos Average, pero
+//no resetea la variable m_nodo ya que el observador
+//seguira asociado al mismo nodo.
+void
+Observador::Reset()
+{
+  m_numIntentos = 0;
+  m_numPeticionesTx = 0;
+  m_numPktsPerdidos = 0;
+  m_tiempoInicial = 0;
+  m_acIntentos.Reset();
+  m_acTiempos.Reset();
+}
+
+//Funcion para guardar en la variable m_nodo el identificador
+//del nodo al que esta asociado el Observador. Esto se usara 
+//en las trazas.
+void
+Observador::SetNodo (int nodo) 
+{ 
+  NS_LOG_FUNCTION(nodo);
+  m_nodo = nodo; 
+}
+
+
+//Funcion para obtener de la variable m_nodo el identificador
+//del nodo al que esta asociado el Observador. Esto se usara 
+//en las trazas.
+int     
+Observador::GetNodo () { return m_nodo; }

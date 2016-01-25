@@ -2,41 +2,32 @@
 
 #include <ns3/packet.h>
 #include <ns3/average.h>
-#include <ns3/ethernet-header.h>
-#include "ns3/double.h"
-#include "ns3/applications-module.h"
-#include <ns3/header.h>
-#include "ns3/nstime.h"
-#include <iterator>
-#include "ns3/csma-net-device.h"
-#include <iostream>
 
 using namespace ns3;
+
 
 class Observador
 {
 public:
-  Observador  (ApplicationContainer clientes, Ptr<Application> sumidero);
-  void TiempoEnvio (Ptr<const Packet> paquete);
-  void TiempoRecepcion (Ptr<const Packet> paquete, const Address &);
-  void PaqueteRechazado(Ptr<const Packet> paquete);
-  double GetRetardo();
-  double GetListaVacia();
-  double GetPorcentajePaquetesRechazados();
-  double GetPaquetesCorrectos();
-
+  Observador  ();
+  void 		EnvioRetrasado (Ptr<const Packet> paquete);
+  void 		EnvioDescartado (Ptr<const Packet> paquete);
+  void 		EnvioTerminado (Ptr<const Packet> paquete);
+  void 		OrdenEnvio (Ptr<const Packet> paquete);
+  void		OrdenPktDisponible (Ptr<const Packet> paquete);
+  double 	GetMediaIntentos ();
+  double	GetMediaTiempos ();
+  double 	GetPorcentajePktsPerdidos ();
+  void    Reset ();
+  void 		SetNodo (int nodo);
+  int 		GetNodo ();
 private:
+	int m_numIntentos;
+	int m_nodo;
+	int m_numPeticionesTx;
+	int m_numPktsPerdidos;
+	int64_t m_tiempoInicial; //En nano segundos
+	Average<int> m_acIntentos;
+	Average<int64_t> m_acTiempos; //En nano segundos
 
- BooleanValue listaVacia;
-
- //Ptr<Application> aplicacion_OnOff;
- Ptr<Application> aplicacion_sumidero;
- ApplicationContainer m_clientes;
-
- Average<double> acumulador_intervalo;
-
- uint32_t totalPaquetes;
- uint32_t paqueteRechazado;
-
- std::map<uint64_t, Time> map_lista;
 };
