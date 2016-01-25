@@ -9,3 +9,5 @@ Se estudiarán 2 aplicaciones (VoIP y FTP); por cada aplicaciones habrá 4 gráf
 y en cada gráfica 3 curvas (1 por cada protocolo: ALOHA, CSMA-CD y Token Ring).
 
 Habrá 6 simulaciones distintas (2 aplicaciones por 3 protocolos), aunque serán muy parecidas.
+
+La aplicación VoIP se hace con cliente on/off y FTP se hace con BulkSendApplication.
