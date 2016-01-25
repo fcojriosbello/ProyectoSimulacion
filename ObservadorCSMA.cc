@@ -2,10 +2,10 @@
 
 #include <ns3/core-module.h>
 #include <ns3/ethernet-header.h>
-#include "Observador.h"
+#include "ObservadorCSMA.h"
 
 
-NS_LOG_COMPONENT_DEFINE ("Observador");
+NS_LOG_COMPONENT_DEFINE ("ObservadorCSMA");
 
 
 Observador::Observador ()
