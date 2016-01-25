@@ -1,0 +1,5 @@
+Ficheros a crear:
+ · simulacion.cc -> que tendrá tantas funciones como protocolos de acceso al medio
+ · Tantos observadores (.cc y .h) como protocolos de acceso al medio
+
+Para no simular todo en el mismo equipo, se ejecutará cada función por separado en cada equipo  (se puede meter un switch case o algo así para hacer esto con el mismo código).
