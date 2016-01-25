@@ -2,4 +2,8 @@ Ficheros a crear:
  · simulacion.cc -> que tendrá tantas funciones como protocolos de acceso al medio
  · Tantos observadores (.cc y .h) como protocolos de acceso al medio
 
-Para no simular todo en el mismo equipo, se ejecutará cada función por separado en cada equipo  (se puede meter un switch case o algo así para hacer esto con el mismo código).
+Para no simular todo en el mismo equipo, se ejecutará cada función por separado en cada equipo
+(se puede meter un switch case o algo así para hacer esto con el mismo código).
+
+Se estudiarán 2 servicios (VoIP y FTP); por cada servicio habrá 4 gráficas (especificadas en el diario de grupo),
+y en cada gráfica 3 curvas (1 por cada protocolo).
