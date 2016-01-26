@@ -6,10 +6,10 @@
 using namespace ns3;
 
 
-class Observador
+class ObservadorCSMA
 {
 public:
-  Observador  ();
+  ObservadorCSMA  ();
   void 		EnvioRetrasado (Ptr<const Packet> paquete);
   void 		EnvioDescartado (Ptr<const Packet> paquete);
   void 		EnvioTerminado (Ptr<const Packet> paquete);

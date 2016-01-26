@@ -8,7 +8,7 @@
 NS_LOG_COMPONENT_DEFINE ("ObservadorCSMA");
 
 
-Observador::Observador ()
+ObservadorCSMA::ObservadorCSMA ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
@@ -20,7 +20,7 @@ Observador::Observador ()
 
 //Funcion que maneja la traza MacTxBackoff
 void
-Observador::EnvioRetrasado (Ptr<const Packet> paquete)
+ObservadorCSMA::EnvioRetrasado (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION (paquete);
 
@@ -44,7 +44,7 @@ Observador::EnvioRetrasado (Ptr<const Packet> paquete)
 
 //Funcion que maneja la traza PhyTxDrop
 void
-Observador::EnvioDescartado (Ptr<const Packet> paquete)
+ObservadorCSMA::EnvioDescartado (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION (paquete);
 
@@ -68,7 +68,7 @@ Observador::EnvioDescartado (Ptr<const Packet> paquete)
 
 //Funcion que maneja la traza PhyTxEnd
 void
-Observador::EnvioTerminado (Ptr<const Packet> paquete)
+ObservadorCSMA::EnvioTerminado (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION (paquete);
 
@@ -99,7 +99,7 @@ Observador::EnvioTerminado (Ptr<const Packet> paquete)
 
 //Funcion que maneja la traza MacTx
 void 
-Observador::OrdenEnvio (Ptr<const Packet> paquete)
+ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION(paquete);
 
@@ -124,7 +124,7 @@ Observador::OrdenEnvio (Ptr<const Packet> paquete)
 
 //Funcion que maneja la traza MacRx
 void
-Observador::OrdenPktDisponible (Ptr<const Packet> paquete)
+ObservadorCSMA::OrdenPktDisponible (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION(paquete);
 
@@ -151,9 +151,9 @@ Observador::OrdenPktDisponible (Ptr<const Packet> paquete)
 
 //Devuelve el número medio de intentos necesarios para 
 //transmitir efectivamente un paquete del nodo asociado 
-//al objeto Observador.
+//al objeto ObservadorCSMA.
 double 
-Observador::GetMediaIntentos ()
+ObservadorCSMA::GetMediaIntentos ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
@@ -167,10 +167,17 @@ Observador::GetMediaIntentos ()
 
 }
 
-//Devuelve el tiempo medio de ECO del nodo asociado al
-//objeto Observador. Se devuelve en ns.
+//Devuelve el porcentaje de pkts retrasados antes de ser enviados.
 double
-Observador::GetMediaTiempos ()
+ObservadorCSMA::GetPorcentajePktsRetrasados ()
+{
+  return (double)m_numPktsRetrasados/(double)m_numPeticionesTx;
+}
+
+//Devuelve el tiempo medio de ECO del nodo asociado al
+//objeto ObservadorCSMA. Se devuelve en ns.
+double
+ObservadorCSMA::GetMediaTiempos ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
@@ -186,7 +193,7 @@ Observador::GetMediaTiempos ()
 //Devuelve el porcentaje de paquetes perdidos al llegar al 
 //numero maximo de intentos configurado.
 double  
-Observador::GetPorcentajePktsPerdidos()
+ObservadorCSMA::GetPorcentajePktsPerdidos()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
@@ -200,10 +207,10 @@ Observador::GetPorcentajePktsPerdidos()
 
 
 //Funcion para resetear variables y objetos Average, pero
-//no resetea la variable m_nodo ya que el observador
+//no resetea la variable m_nodo ya que el ObservadorCSMA
 //seguira asociado al mismo nodo.
 void
-Observador::Reset()
+ObservadorCSMA::Reset()
 {
   m_numIntentos = 0;
   m_numPeticionesTx = 0;
@@ -214,10 +221,10 @@ Observador::Reset()
 }
 
 //Funcion para guardar en la variable m_nodo el identificador
-//del nodo al que esta asociado el Observador. Esto se usara 
+//del nodo al que esta asociado el ObservadorCSMA. Esto se usara 
 //en las trazas.
 void
-Observador::SetNodo (int nodo) 
+ObservadorCSMA::SetNodo (int nodo) 
 { 
   NS_LOG_FUNCTION(nodo);
   m_nodo = nodo; 
@@ -225,7 +232,7 @@ Observador::SetNodo (int nodo)
 
 
 //Funcion para obtener de la variable m_nodo el identificador
-//del nodo al que esta asociado el Observador. Esto se usara 
+//del nodo al que esta asociado el ObservadorCSMA. Esto se usara 
 //en las trazas.
 int     
-Observador::GetNodo () { return m_nodo; }
+ObservadorCSMA::GetNodo () { return m_nodo; }
