@@ -162,7 +162,7 @@ ObservadorCSMA::OrdenPktDisponible (Ptr<const Packet> paquete)
 
 //Funcion que maneja la traza Tx
 void
-Observador::PktGenerado (Ptr<const Packet> paquete)
+ObservadorCSMA::PktGenerado (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION (paquete);
 
@@ -179,7 +179,7 @@ Observador::PktGenerado (Ptr<const Packet> paquete)
 
 //Funcion que maneja la traza Rx
 void
-Observador::PktRecibido (Ptr<const Packet> paquete, const Address &)
+ObservadorCSMA::PktRecibido (Ptr<const Packet> paquete, const Address &)
 {
   NS_LOG_FUNCTION (paquete);
 
