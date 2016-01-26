@@ -117,7 +117,7 @@ ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
     m_tiempoInicial = Simulator::Now().GetNanoSeconds();
 
     //Aumentamos el numero de peticiones de transmision
-    m_numPeticionesTx++;
+    //m_numPeticionesTx++;
   }
 
 }
@@ -149,6 +149,52 @@ ObservadorCSMA::OrdenPktDisponible (Ptr<const Packet> paquete)
   }
 }
 
+
+//Funcion que maneja la traza Tx
+void
+Observador::PktGenerado (Ptr<const Packet> paquete)
+{
+  NS_LOG_FUNCTION (paquete);
+
+  NS_LOG_DEBUG ("Se ha generado un nuevo paquete y va a ser enviado.");
+
+
+  //Almacenamos el tiempo inicial.
+  m_tiemposIniciales[paquete->GetUid()] = Simulator::Now();
+
+  //Aumentamos el numero de peticiones de transmision
+  m_numPeticionesTx++;
+}
+
+
+//Funcion que maneja la traza Rx
+void
+Observador::PktRecibido (Ptr<const Packet> paquete, const Address &)
+{
+  NS_LOG_FUNCTION (paquete);
+
+  //Buscamos en la estructura de timepos iniciales el correspondiente a este paquete.
+  m_iterador = m_tiemposIniciales.find (paquete->GetUid());
+
+  if (m_iterador != m_tiemposIniciales.end())
+  {
+    //Si encontramos el paquete en la estructura...
+
+    //Calculamos el tiempo transcurrido.
+    m_retardo = Simulator::Now() - m_tiemposIniciales[paquete->GetUid()];
+
+    //Actualizamos el acumulador.
+    m_acTiempos.Update(m_retardo.GetDouble());
+    NS_LOG_DEBUG ("Se ha recibido un paquete en el sumidero en  " << m_retardo.GetDouble()/1e3 << "ms.");
+
+    //Eliminamos el paquete de la estructura
+    m_tiemposIniciales.erase(m_iterador);
+  }
+  else
+    NS_LOG_WARN("No se ha encontrado el paquete recibido en la estructura de tiempos iniciales."); 
+}
+
+
 //Devuelve el número medio de intentos necesarios para 
 //transmitir efectivamente un paquete del nodo asociado 
 //al objeto ObservadorCSMA.
@@ -167,7 +213,7 @@ ObservadorCSMA::GetMediaIntentos ()
 
 }
 
-//Devuelve el porcentaje de pkts retrasados antes de ser enviados.
+//Devuelve el porcentaje de pkts retrasados antes de ser enviados.  
 double
 ObservadorCSMA::GetPorcentajePktsRetrasados ()
 {

@@ -18,6 +18,7 @@ public:
   double 	GetMediaIntentos ();
   double	GetMediaTiempos ();
   double 	GetPorcentajePktsPerdidos ();
+  double  GetPorcentajePktsRetrasados ();
   void    Reset ();
   void 		SetNodo (int nodo);
   int 		GetNodo ();
@@ -28,8 +29,14 @@ private:
 	int m_numPktsPerdidos;
   int m_numPktsRetrasados;
 	int64_t m_tiempoInicial; //En nano segundos
+  Boolean m_pktRetrasado; //Flag que indica que el pkt ha sido retrasado antes de enviarlo.
+  Time m_retardo;         //Tiempo transcurrido hasta la recepción del pkt.
+
 	Average<int> m_acIntentos;
 	Average<int64_t> m_acTiempos; //En nano segundos
-  Boolean m_pktRetrasado; //Flag que indica que el pkt ha sido retrasado antes de enviarlo.
+  
+  std::map<uint64_t, Time> m_tiemposIniciales;    //Estructura tipo map para almacenar los 
+                                                  //tiempos de envio de cada paquete.
+  std::map<uint64_t, Time>::iterator m_iterador;    //Objeto para manejar la estructura anterior.
 
 };
