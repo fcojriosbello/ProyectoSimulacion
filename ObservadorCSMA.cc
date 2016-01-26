@@ -13,6 +13,8 @@ Observador::Observador ()
   NS_LOG_FUNCTION_NOARGS ();
 
   m_nodo = 0;
+  m_pktRetrasado = false;
+  m_numPktsRetrasados = 0;
   Reset();
 }
 
@@ -35,6 +37,7 @@ Observador::EnvioRetrasado (Ptr<const Packet> paquete)
   {
     NS_LOG_DEBUG ("NODO " << m_nodo <<"-> Se ha retrasado el envio de un paquete debido al proceso de backoff.");
     m_numIntentos ++;
+    m_pktRetrasado = true;
     NS_LOG_DEBUG ("Numero de intentos: " << m_numIntentos);
   }
 }
@@ -57,7 +60,7 @@ Observador::EnvioDescartado (Ptr<const Packet> paquete)
   {
     NS_LOG_DEBUG("NODO " << m_nodo <<"-> Se ha descartado el envio de un paquete porque ha llegado al maximo numero de intentos.");
     m_numIntentos = 0;
-
+    m_pktRetrasado = false;
     //Aumentamos el numero de paquetes perdidos
     m_numPktsPerdidos++;
   }
@@ -85,6 +88,12 @@ Observador::EnvioTerminado (Ptr<const Packet> paquete)
     NS_LOG_DEBUG ("Numero de intentos: " << m_numIntentos);
     m_acIntentos.Update(m_numIntentos);
     m_numIntentos = 0;
+
+    if (m_pktRetrasado == true)
+    {
+      m_numPktsRetrasados++;
+      m_pktRetrasado = false;
+    }
   }
 }
 

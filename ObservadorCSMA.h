@@ -26,8 +26,10 @@ private:
 	int m_nodo;
 	int m_numPeticionesTx;
 	int m_numPktsPerdidos;
+  int m_numPktsRetrasados;
 	int64_t m_tiempoInicial; //En nano segundos
 	Average<int> m_acIntentos;
 	Average<int64_t> m_acTiempos; //En nano segundos
+  Boolean m_pktRetrasado; //Flag que indica que el pkt ha sido retrasado antes de enviarlo.
 
 };
