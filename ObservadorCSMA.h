@@ -2,6 +2,8 @@
 
 #include <ns3/packet.h>
 #include <ns3/average.h>
+#include <ns3/data-rate.h>
+
 
 using namespace ns3;
 
@@ -26,7 +28,7 @@ public:
   void      SetNodo (int nodo);
   int       GetNodo ();
   void      SetTamPkt (uint32_t tamPkt);
-  
+
 private:
 	int m_numIntentos;
 	int m_nodo;
@@ -35,7 +37,7 @@ private:
   int m_numPktsRetrasados;
   uint32_t m_tamPkt;
 	//int64_t m_tiempoInicial; //En nano segundos
-  Boolean m_pktRetrasado; //Flag que indica que el pkt ha sido retrasado antes de enviarlo.
+  bool m_pktRetrasado; //Flag que indica que el pkt ha sido retrasado antes de enviarlo.
   Time m_retardo;         //Tiempo transcurrido hasta la recepción del pkt.
 
 	Average<int> m_acIntentos;

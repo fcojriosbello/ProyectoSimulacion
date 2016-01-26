@@ -110,7 +110,7 @@ void
 ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION(paquete);
-
+NS_LOG_ERROR("MACTX:" << paquete->GetUid());
   // Obtengo una copia del paquete
   Ptr<Packet> copia = paquete->Copy();
 
@@ -122,7 +122,6 @@ ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
   if (header.GetLengthType() == 0x0800)
   {
     NS_LOG_DEBUG("NODO " << m_nodo <<"-> Se ha recibido la orden de envio de un paquete ECO.");
-    m_tiempoInicial = Simulator::Now().GetNanoSeconds();
 
     //Aumentamos el numero de peticiones de transmision
     m_numPeticionesTx++;
@@ -168,9 +167,11 @@ ObservadorCSMA::PktGenerado (Ptr<const Packet> paquete)
 
   NS_LOG_DEBUG ("Se ha generado un nuevo paquete y va a ser enviado.");
 
-
+NS_LOG_ERROR("TX:" << paquete->GetUid());
   //Almacenamos el tiempo inicial.
   m_tiemposIniciales[paquete->GetUid()] = Simulator::Now();
+
+  NS_LOG_ERROR("tam_estruct: " << m_tiemposIniciales.size());
 }
 
 
@@ -179,10 +180,12 @@ void
 ObservadorCSMA::PktRecibido (Ptr<const Packet> paquete, const Address &)
 {
   NS_LOG_FUNCTION (paquete);
-
+NS_LOG_ERROR("RX:" << paquete->GetUid());
   //Buscamos en la estructura de timepos iniciales el correspondiente a este paquete.
   m_iterador = m_tiemposIniciales.find (paquete->GetUid());
 
+  bool result = m_iterador != m_tiemposIniciales.end();
+NS_LOG_ERROR(result);
   if (m_iterador != m_tiemposIniciales.end())
   {
     //Si encontramos el paquete en la estructura...
@@ -271,7 +274,7 @@ ObservadorCSMA::GetTasaMedia () {
     //El tamaño de paquete es fijo.
     //Obtenemos la tasa media a nivel de aplicación dividiendo el tamaño de la carga útil
     //entre el tiempo medio de recepción de un pkt a nivel de aplicación.
-    result = DataRate((uint64_t)(m_tamPkt*8)/(uint64_t)(this.GetMediaTiempos() * 1e-9));
+    result = DataRate((uint64_t)(m_tamPkt*8)/(uint64_t)(this->GetMediaTiempos() * 1e-9));
   else 
     result = DataRate("0bps");
 

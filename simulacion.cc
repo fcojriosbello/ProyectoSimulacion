@@ -8,51 +8,24 @@
 #include "ns3/applications-module.h"
 #include <ns3/average.h>
 #include "ns3/gnuplot.h"
-#include "Observador.h"
+#include "ObservadorCSMA.h"
 
 #define NUM_SIMULACIONES 10
 #define TSTUDENT10 2.2622
 #define DNI0 5
 #define DNI1 1
 
-//Estructura de datos para almacenar
-//los resultados medios de una unica simulacion
-typedef struct
-  {
-    double intentos;
-    double tiempo;
-    double porcentaje;
-  } ResultSimulacion;
 
-//Estructura de datos para almacenar los
-//resultados meddios y las varianzas de 
-//varias simulaciones.
-//Notese la diferencia con la estructura anterior
-//ya que esta la usaremos para guardar el resultado
-//de varias simulaciones y la anterior solo para una.
-typedef struct 
-  {
-    ResultSimulacion medias;
-    ResultSimulacion varianzas;
-  } ResultSimulaciones;
+void simulacionCSMA_FTP (uint32_t nCsma, Time retardoProp, DataRate capacidad, 
+        uint32_t tamPaquete);
 
-//Con esta funcion realizaremos NUM_SIMULACIONES simulaciones para cada punto de las graficas
-//Devuelve una estructura donde se alamacenan las medias y varianzas necesarias
-//para representar el punto de las graficas.Devuelve -1 en la variable correspondiente
-// si hay algun error (si no se ha contado ningun evento).
-ResultSimulaciones simulacion (uint32_t nCsma, Time retardoProp, DataRate capacidad, 
-        uint32_t tamPaquete, Time intervalo, int maxReintentos);
 
-//Funcion que obtiene los resultados de una simulacion a partir de los objetos
-//Observador. Devuelve -1 en la variable correspondiente si hay algun error 
-//(si no se ha contado ningun evento).
-ResultSimulacion ResultadosSimulacion (Observador *observador, uint32_t nCsma);
 
 
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("practica05");
+NS_LOG_COMPONENT_DEFINE ("FTP-CSMA");
 
 
 int
@@ -61,6 +34,10 @@ main (int argc, char *argv[])
 	GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 	Time::SetResolution (Time::NS);
 
+simulacionCSMA_FTP ((uint32_t) 2, Time("6560ns"), DataRate("10Mbps"), (uint32_t)1000);
+
+
+/*
     //Variable para el calculo del intervalo de confianza.
     double z = 0.0;
 
@@ -168,226 +145,84 @@ main (int argc, char *argv[])
     ficheroPorcentaje.close();
     //-------------------------------------------------  
 
-    return 0;
+    return 0;*/
 }
 
 
-
-
-//Funcion que obtiene los resultados de una simulacion a partir de los objetos
-//Observador. Devuelve -1 en la variable correspondiente si hay algun error 
-//(si no se ha contado ningun evento).
-ResultSimulacion
-ResultadosSimulacion (Observador *observador, uint32_t nCsma)
+//Simulación simple para el servicio FTP usando CSMA
+void
+simulacionCSMA_FTP (uint32_t nCsma, Time retardoProp, DataRate capacidad, uint32_t tamPaquete)
 {
-    NS_LOG_FUNCTION(observador << nCsma);
+    NS_LOG_FUNCTION(nCsma << retardoProp << capacidad << tamPaquete );
 
-    ResultSimulacion resultados = {-1, -1, -1};
+    NodeContainer csmaNodes;
+    csmaNodes.Create (nCsma);
 
-    //Objeto para guardar el numero de intentos medios de cada nodo.
-    Average<double> acIntentos;
-    //Objeto para guardar el tiempos medios (ns) de eco de cada nodo.
-    Average<double> acTiempos;
-    //Objeto para guardar los porcentajes de paquetes perdidos de cada nodo.
-    Average<double> acPorcentajes;
+    CsmaHelper csma;
+    csma.SetChannelAttribute ("DataRate", DataRateValue (capacidad));
+    csma.SetChannelAttribute ("Delay", TimeValue (retardoProp));
 
-    //Obtenemos los resultados de la simulacion
-    //para el conjunto de nodos clientes menos el de indice 0.
-    for (uint32_t j = 3; j < nCsma-1; j++)
+    NetDeviceContainer csmaDevices;
+    csmaDevices = csma.Install (csmaNodes);
+    // Instalamos la pila TCP/IP en todos los nodos
+    InternetStackHelper stack;
+    stack.Install (csmaNodes);
+    // Y les asignamos direcciones
+    Ipv4AddressHelper address;
+    address.SetBase ("10.1.2.0", "255.255.255.0");
+    Ipv4InterfaceContainer csmaInterfaces = address.Assign (csmaDevices);            
+
+    // Cálculo de rutas
+    Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+
+    /////////// Instalación de las aplicaciones
+    // Servidor
+    uint16_t port = 21;
+    PacketSinkHelper sink ("ns3::TcpSocketFactory",
+                     Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
+    ApplicationContainer sinkApp = sink.Install (csmaNodes.Get (0));
+
+    sinkApp.Start (Seconds (0));
+    sinkApp.Stop (Seconds (10));
+
+    // Clientes
+    AddressValue remoteAddress (InetSocketAddress (csmaInterfaces.GetAddress(0), port));
+    //Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (tcp_adu_size));
+    BulkSendHelper ftp ("ns3::TcpSocketFactory", Address());
+    ftp.SetAttribute ("Remote", remoteAddress);
+    ftp.SetAttribute ("MaxBytes", UintegerValue (0));
+
+    //Contenedor de los nodos clientes
+    NodeContainer clientes;
+    for (uint32_t i = 1; i < nCsma; i++)
+        clientes.Add(csmaNodes.Get(i));
+
+    ApplicationContainer sourceApp = ftp.Install (clientes);
+    sourceApp.Start (Seconds (1));
+    sourceApp.Stop (Seconds (9));
+
+    // Suscribimos un objeto Observador a las trazas de cada nodo.
+    //Nodo 0 es el servidor
+    ObservadorCSMA observadorCSMA[nCsma];
+
+    for (uint32_t j = 1; j < nCsma; j++)
     {
-        if (observador[j].GetMediaIntentos() != -1)
-        {
-            acIntentos.Update(observador[j].GetMediaIntentos());
-            NS_LOG_LOGIC ("Número medio de intentos necesarios para transmitir efectivamente un paquete en el nodo "
-                            << observador[j].GetNodo() << ": " << observador[j].GetMediaIntentos());
-        }
-        else
-            NS_LOG_LOGIC ("No se ha transmitido con exito ningun paquete en el nodo "
-                << observador[j].GetNodo());
-
-        if (observador[j].GetMediaTiempos() != -1) 
-        {
-            //Actualizamos el acumulador de tiempos de eco.
-            acTiempos.Update(observador[j].GetMediaTiempos());
-            NS_LOG_LOGIC ("Tiempo medio de ECO en el nodo "
-                        << observador[j].GetNodo() << ": " << observador[j].GetMediaTiempos()/1e6 << " ms");
-        }
-        else
-            NS_LOG_LOGIC ("No se ha completado con exito ninguna peticion ECO en el nodo "
-                << observador[j].GetNodo());
-
-        if (observador[j].GetPorcentajePktsPerdidos() != -1)
-        {
-            acPorcentajes.Update(observador[j].GetPorcentajePktsPerdidos());
-            NS_LOG_LOGIC ("Porcentaje de paquetes enviados correctamente en el nodo "
-                << observador[j].GetNodo() << ": " << 100-observador[j].GetPorcentajePktsPerdidos() << "%");
-        }
-        else
-            NS_LOG_LOGIC ("No se ha podido obtener el porcentaje de paquetes enviados correctamente en el nodo " 
-                << observador[j].GetNodo());
-    }
-
-    if(acIntentos.Count() > 0)
-    {
-        NS_LOG_INFO ("Numero medio de intentos necesarios para transmitir un paquete en el conjunto de clientes: "
-             << acIntentos.Mean()); 
-        resultados.intentos = acIntentos.Mean();
-    }
-    else
-        NS_LOG_INFO ("No se ha transmitido ningun paquete correctamente.");
-
-    if(acIntentos.Count() > 0)   
-    {
-        NS_LOG_INFO ("Tiempo medio de ECO en el conjunto de clientes: "
-             << acTiempos.Mean()/1e6 << " ms");
-        resultados.tiempo = acTiempos.Mean()/1e6;
-    }
-    else
-        NS_LOG_INFO ("No se ha completado con exito ninguna peticion ECO.");
-
-    if(acPorcentajes.Count() > 0)
-    {
-        NS_LOG_INFO ("Porcentaje de paquetes enviados correctamente por el conjunto de clientes :"
-        << 100 - acPorcentajes.Mean() << "%");
-        resultados.porcentaje = 100 - acPorcentajes.Mean();
-    }
-    else
-        NS_LOG_INFO ("No se ha podido obtener el porcentaje de paquetes enviados correctamente por el conjunto de clientes.");
-
-    return resultados;
-}
-
-
-
-//Con esta funcion realizaremos NUM_SIMULACIONES simulaciones simples para cada punto de las graficas
-//Devuelve una estructura donde se alamacenan las medias y varianzas necesarias
-//para representar el punto de las graficas.Devuelve -1 en la variable correspondiente
-// si hay algun error (si no se ha contado ningun evento).
-ResultSimulaciones
-simulacion (uint32_t nCsma, Time retardoProp, DataRate capacidad, 
-    uint32_t tamPaquete, Time intervalo, int maxReintentos)
-{
-    NS_LOG_FUNCTION(nCsma << retardoProp << capacidad << tamPaquete << intervalo << maxReintentos);
-
-    //Objeto para guardar el numero de intentos medios de cada simulacion.
-    Average<double> acIntentos;
-    //Objeto para guardar el tiempos medios (ns) de eco de cada simulacion.
-    Average<double> acTiempos;
-    //Objeto para guardar los porcentajes de paquetes perdidos de cada simulacion.
-    Average<double> acPorcentajes;
-
-    ResultSimulaciones resultados = {{-1,-1,-1},{-1,-1,-1}};
-    
-    //Realizamos NUM_SIMULACIONES simulaciones con los parametros indicados.
-    for (int i = 0; i < NUM_SIMULACIONES; i++)
-    {
-
-        NodeContainer csmaNodes;
-        csmaNodes.Create (nCsma);
-
-        CsmaHelper csma;
-        csma.SetChannelAttribute ("DataRate", DataRateValue (capacidad));
-        csma.SetChannelAttribute ("Delay", TimeValue (retardoProp));
-
-        NetDeviceContainer csmaDevices;
-        csmaDevices = csma.Install (csmaNodes);
-        // Instalamos la pila TCP/IP en todos los nodos
-        InternetStackHelper stack;
-        stack.Install (csmaNodes);
-        // Y les asignamos direcciones
-        Ipv4AddressHelper address;
-        address.SetBase ("10.1.2.0", "255.255.255.0");
-        Ipv4InterfaceContainer csmaInterfaces = address.Assign (csmaDevices);            
-
-        // Cálculo de rutas
-        Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-
-        /////////// Instalación de las aplicaciones
-        // Servidor
-        uint16_t port = 21;
-        PacketSinkHelper sink ("ns3::TcpSocketFactory",
-                         Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
-        ApplicationContainer sinkApp = sink.Install (csmaNodes.Get (0));
-
-        sinkApp.Start (Seconds (0));
-        sinkApp.Stop (Seconds (100));
-
-        // Clientes
-        AddressValue remoteAddress (InetSocketAddress (csmaInterfaces.GetAddress(0), port));
-        //Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (tcp_adu_size));
-        BulkSendHelper ftp ("ns3::TcpSocketFactory", Address());
-        ftp.SetAttribute ("Remote", remoteAddress);
-        ftp.SetAttribute ("MaxBytes", UintegerValue (0));
-
-        //Contenedor de los nodos clientes
-        NodeContainer clientes;
-        for (int i = 1; i < nCsma; i++)
-            clientes.Add(csmaNodes.Get(i));
-
-        ApplicationContainer sourceApp = ftp.Install (clientes);
-        sourceApp.Start (Seconds (1));
-        sourceApp.Stop (Seconds (98));
-
-        // Suscribimos un objeto Observador a las trazas de cada nodo.
-        //Nodo 0 es el servidor
-        ObservadorCSMA observadorCSMA[nCsma];
-
-        for (uint32_t j = 0; j < nCsma; j++)
-        {
-            observadorCSMA[j].SetNodo((int)j);
-            observadorCSMA[j].SetTamPkt(tamPaquete);
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTxBackoff", MakeCallback(&ObservadorCSMA::EnvioRetrasado, &observadorCSMA[j]));
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxDrop", MakeCallback(&ObservadorCSMA::EnvioDescartado, &observadorCSMA[j]));
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxEnd", MakeCallback(&ObservadorCSMA::EnvioTerminado, &observadorCSMA[j]));
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTx", MakeCallback(&ObservadorCSMA::OrdenEnvio, &observadorCSMA[j]));
-            sourceApp.Get(j)->GetObject<BulkSendApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&ObservadorCSMA::PktGenerado, &observadorCSMA[0]));
+        observadorCSMA[j].SetNodo((int)j);
+        observadorCSMA[j].SetTamPkt(tamPaquete);
+        csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTxBackoff", MakeCallback(&ObservadorCSMA::EnvioRetrasado, &observadorCSMA[j]));
+        csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxDrop", MakeCallback(&ObservadorCSMA::EnvioDescartado, &observadorCSMA[j]));
+        csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxEnd", MakeCallback(&ObservadorCSMA::EnvioTerminado, &observadorCSMA[j]));
+        csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTx", MakeCallback(&ObservadorCSMA::OrdenEnvio, &observadorCSMA[j]));
+        sourceApp.Get(j-1)->GetObject<BulkSendApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&ObservadorCSMA::PktGenerado, &observadorCSMA[0]));
             
-            //Aprovechamos para cambiar el numero maximo de reintentos de tx 
-            //csmaDevices.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, maxReintentos);
-        }  
+        //Aprovechamos para cambiar el numero maximo de reintentos de tx 
+        //csmaDevices.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, maxReintentos);
+    }  
 
-        sourceApp.Get(0)->GetObject<BulkSendApplication>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorCSMA::PktRecibido, &observadorCSMA[0]));   
+    sinkApp.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorCSMA::PktRecibido, &observadorCSMA[0]));   
 
+    Simulator::Run ();
+    Simulator::Destroy ();
 
-        Simulator::Run ();
-        Simulator::Destroy ();
-
-        //Obtenemos los resultados de la simulacion iesima
-        resultados.medias = ResultadosSimulacion(observador, nCsma);
-
-        //Si los resultados son correctos, los acumulamos
-        if(resultados.medias.intentos != -1)
-            acIntentos.Update(resultados.medias.intentos);
-
-        if(resultados.medias.tiempo != -1)   
-            acTiempos.Update(resultados.medias.tiempo);
-    
-        if(resultados.medias.porcentaje != -1)
-            acPorcentajes.Update(resultados.medias.porcentaje);
-    }
-
-    //Igualamos los resultados a -1 para el control de errores.
-    resultados.medias.intentos = -1;
-    resultados.medias.tiempo = -1;
-    resultados.medias.porcentaje = -1;
-
-    if (acIntentos.Count() > 0)
-    {
-        resultados.medias.intentos = acIntentos.Mean();
-        resultados.varianzas.intentos = acIntentos.Var();
-    }
-
-    if (acTiempos.Count() > 0)
-    {
-        resultados.medias.tiempo = acTiempos.Mean();
-        resultados.varianzas.tiempo = acTiempos.Var();
-    }
-
-    if (acPorcentajes.Count() > 0)
-    {
-        resultados.medias.porcentaje = acPorcentajes.Mean();
-        resultados.varianzas.porcentaje = acPorcentajes.Var();
-    }
-
-    return resultados;
+    NS_LOG_ERROR(observadorCSMA[0].GetMediaTiempos());
 }
