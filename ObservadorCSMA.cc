@@ -104,7 +104,7 @@ ObservadorCSMA::EnvioTerminado (Ptr<const Packet> paquete)
   }
 }
 
-/*
+
 //Funcion que maneja la traza MacTx
 void 
 ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
@@ -118,18 +118,18 @@ ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
   // Quitamos la cabecera del paquete y la guardamos en header.
   copia->RemoveHeader (header);
 
-  // Comprobamos que sea un paquete ip (contiene el paquete eco).
+  // Comprobamos que sea un paquete ip.
   if (header.GetLengthType() == 0x0800)
   {
     NS_LOG_DEBUG("NODO " << m_nodo <<"-> Se ha recibido la orden de envio de un paquete ECO.");
     m_tiempoInicial = Simulator::Now().GetNanoSeconds();
 
     //Aumentamos el numero de peticiones de transmision
-    //m_numPeticionesTx++;
+    m_numPeticionesTx++;
   }
 
 }
-*/
+
 /*
 //Funcion que maneja la traza MacRx
 void
@@ -171,9 +171,6 @@ ObservadorCSMA::PktGenerado (Ptr<const Packet> paquete)
 
   //Almacenamos el tiempo inicial.
   m_tiemposIniciales[paquete->GetUid()] = Simulator::Now();
-
-  //Aumentamos el numero de peticiones de transmision
-  m_numPeticionesTx++;
 }
 
 

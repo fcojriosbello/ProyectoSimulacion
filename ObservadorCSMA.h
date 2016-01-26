@@ -13,7 +13,7 @@ public:
   void      EnvioRetrasado (Ptr<const Packet> paquete);
   void      EnvioDescartado (Ptr<const Packet> paquete);
   void      EnvioTerminado (Ptr<const Packet> paquete);
-  //void      OrdenEnvio (Ptr<const Packet> paquete);
+  void      OrdenEnvio (Ptr<const Packet> paquete);
   //void		  OrdenPktDisponible (Ptr<const Packet> paquete);
   void      PktGenerado (Ptr<const Packet> paquete);
   void      PktRecibido (Ptr<const Packet> paquete, const Address &);
@@ -25,6 +25,8 @@ public:
   //void      Reset ();
   void      SetNodo (int nodo);
   int       GetNodo ();
+  void      SetTamPkt (uint32_t tamPkt);
+  
 private:
 	int m_numIntentos;
 	int m_nodo;
