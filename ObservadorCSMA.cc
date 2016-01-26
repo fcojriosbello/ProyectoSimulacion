@@ -13,6 +13,7 @@ ObservadorCSMA::ObservadorCSMA ()
   NS_LOG_FUNCTION_NOARGS ();
 
   m_nodo = 0;
+  m_retardo = Time(0);
   m_pktRetrasado = false;
   m_numPktsRetrasados = 0;
   Reset();
@@ -251,6 +252,23 @@ ObservadorCSMA::GetPorcentajePktsPerdidos()
   return result;
 }
 
+DataRate
+ObservadorCSMA::GetTasaMedia () {
+  NS_LOG_FUNCTION_NOARGS ();
+
+  DataRate result;
+
+  //Comprobamos que se haya realizado correctamente algun envio
+  if (m_acTiempos.Count() > 0)
+    //El tamaño de paquete es fijo.
+    //Obtenemos la tasa media a nivel de aplicación dividiendo el tamaño de la carga útil
+    //entre el tiempo medio de recepción de un pkt a nivel de aplicación.
+    result = DataRate((uint64_t)(m_tamPkt*8)/(uint64_t)(this.GetMediaTiempos() * 1e-9));
+  else 
+    result = DataRate("0bps");
+
+  return result;
+}
 
 //Funcion para resetear variables y objetos Average, pero
 //no resetea la variable m_nodo ya que el ObservadorCSMA
@@ -282,3 +300,12 @@ ObservadorCSMA::SetNodo (int nodo)
 //en las trazas.
 int     
 ObservadorCSMA::GetNodo () { return m_nodo; }
+
+//Función para indicar al objeto ObservadorCSMA el tamaño de la 
+//carga útil de los pkts que serán enviados.
+void
+ObservadorCSMA::SetTamPkt (uint32_t tamPkt)
+{
+  NS_LOG_FUNCTION(tamPkt);
+  m_tamPkt = tamPkt;
+}
