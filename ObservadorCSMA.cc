@@ -13,10 +13,16 @@ ObservadorCSMA::ObservadorCSMA ()
   NS_LOG_FUNCTION_NOARGS ();
 
   m_nodo = 0;
+  m_tamPkt = 0;
+  m_numPktsRetrasados = 0;
+  m_numIntentos = 0;
+  m_numPeticionesTx = 0;
+  //m_numPktsPerdidos = 0;
+  //m_tiempoInicial = 0;
   m_retardo = Time(0);
   m_pktRetrasado = false;
-  m_numPktsRetrasados = 0;
-  Reset();
+  m_acIntentos.Reset();
+  m_acTiempos.Reset();
 }
 
 //Funcion que maneja la traza MacTxBackoff
@@ -63,7 +69,7 @@ ObservadorCSMA::EnvioDescartado (Ptr<const Packet> paquete)
     m_numIntentos = 0;
     m_pktRetrasado = false;
     //Aumentamos el numero de paquetes perdidos
-    m_numPktsPerdidos++;
+    //m_numPktsPerdidos++;
   }
 }
 
@@ -98,6 +104,7 @@ ObservadorCSMA::EnvioTerminado (Ptr<const Packet> paquete)
   }
 }
 
+/*
 //Funcion que maneja la traza MacTx
 void 
 ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
@@ -122,7 +129,8 @@ ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
   }
 
 }
-
+*/
+/*
 //Funcion que maneja la traza MacRx
 void
 ObservadorCSMA::OrdenPktDisponible (Ptr<const Packet> paquete)
@@ -149,6 +157,7 @@ ObservadorCSMA::OrdenPktDisponible (Ptr<const Packet> paquete)
     NS_LOG_DEBUG("Tiempo de ECO: " << (double)transcurrido/1e6 << " ms");
   }
 }
+*/
 
 
 //Funcion que maneja la traza Tx
@@ -237,6 +246,7 @@ ObservadorCSMA::GetMediaTiempos ()
   return result;
 }
 
+/*
 //Devuelve el porcentaje de paquetes perdidos al llegar al 
 //numero maximo de intentos configurado.
 double  
@@ -251,6 +261,7 @@ ObservadorCSMA::GetPorcentajePktsPerdidos()
 
   return result;
 }
+*/
 
 DataRate
 ObservadorCSMA::GetTasaMedia () {
@@ -270,6 +281,7 @@ ObservadorCSMA::GetTasaMedia () {
   return result;
 }
 
+/*
 //Funcion para resetear variables y objetos Average, pero
 //no resetea la variable m_nodo ya que el ObservadorCSMA
 //seguira asociado al mismo nodo.
@@ -278,11 +290,12 @@ ObservadorCSMA::Reset()
 {
   m_numIntentos = 0;
   m_numPeticionesTx = 0;
-  m_numPktsPerdidos = 0;
+  //m_numPktsPerdidos = 0;
   m_tiempoInicial = 0;
   m_acIntentos.Reset();
   m_acTiempos.Reset();
 }
+*/
 
 //Funcion para guardar en la variable m_nodo el identificador
 //del nodo al que esta asociado el ObservadorCSMA. Esto se usara 

@@ -13,26 +13,26 @@ public:
   void      EnvioRetrasado (Ptr<const Packet> paquete);
   void      EnvioDescartado (Ptr<const Packet> paquete);
   void      EnvioTerminado (Ptr<const Packet> paquete);
-  void      OrdenEnvio (Ptr<const Packet> paquete);
-  void		  OrdenPktDisponible (Ptr<const Packet> paquete);
+  //void      OrdenEnvio (Ptr<const Packet> paquete);
+  //void		  OrdenPktDisponible (Ptr<const Packet> paquete);
   void      PktGenerado (Ptr<const Packet> paquete);
   void      PktRecibido (Ptr<const Packet> paquete, const Address &);
   double 	  GetMediaIntentos ();
   double    GetMediaTiempos ();
-  double 	  GetPorcentajePktsPerdidos ();
+  //double 	  GetPorcentajePktsPerdidos ();
   double    GetPorcentajePktsRetrasados ();
   DataRate  GetTasaMedia();
-  void      Reset ();
+  //void      Reset ();
   void      SetNodo (int nodo);
   int       GetNodo ();
 private:
 	int m_numIntentos;
 	int m_nodo;
 	int m_numPeticionesTx;
-	int m_numPktsPerdidos;
+	//int m_numPktsPerdidos;
   int m_numPktsRetrasados;
   uint32_t m_tamPkt;
-	int64_t m_tiempoInicial; //En nano segundos
+	//int64_t m_tiempoInicial; //En nano segundos
   Boolean m_pktRetrasado; //Flag que indica que el pkt ha sido retrasado antes de enviarlo.
   Time m_retardo;         //Tiempo transcurrido hasta la recepción del pkt.
 
