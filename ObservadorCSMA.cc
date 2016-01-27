@@ -14,18 +14,18 @@ ObservadorCSMA::ObservadorCSMA ()
 
   m_nodo = 0;
   m_tamPkt = 0;
-  m_numPktsRetrasados = 0;
-  m_numIntentos = 0;
+  //m_numPktsRetrasados = 0;
+  //m_numIntentos = 0;
   m_numPeticionesTx = 0;
-  //m_numPktsPerdidos = 0;
+  m_numPktsPerdidos = 0;
   //m_tiempoInicial = 0;
   m_retardo = Time(0);
-  m_pktRetrasado = false;
-  m_acIntentos.Reset();
+  //m_pktRetrasado = false;
+  //m_acIntentos.Reset();
   m_acTiempos.Reset();
 }
 
-//Funcion que maneja la traza MacTxBackoff
+/*//Funcion que maneja la traza MacTxBackoff
 void
 ObservadorCSMA::EnvioRetrasado (Ptr<const Packet> paquete)
 {
@@ -47,7 +47,7 @@ ObservadorCSMA::EnvioRetrasado (Ptr<const Packet> paquete)
     m_pktRetrasado = true;
     NS_LOG_DEBUG ("Numero de intentos: " << m_numIntentos);
   }
-}
+}*/
 
 //Funcion que maneja la traza PhyTxDrop
 void
@@ -66,14 +66,13 @@ ObservadorCSMA::EnvioDescartado (Ptr<const Packet> paquete)
   if (header.GetLengthType() == 0x0800)
   {
     NS_LOG_DEBUG("NODO " << m_nodo <<"-> Se ha descartado el envio de un paquete porque ha llegado al maximo numero de intentos.");
-    m_numIntentos = 0;
-    m_pktRetrasado = false;
+    //m_numIntentos = 0;
+    //m_pktRetrasado = false;
     //Aumentamos el numero de paquetes perdidos
-    //m_numPktsPerdidos++;
+    m_numPktsPerdidos++;
   }
 }
-
-//Funcion que maneja la traza PhyTxEnd
+/*//Funcion que maneja la traza PhyTxEnd
 void
 ObservadorCSMA::EnvioTerminado (Ptr<const Packet> paquete)
 {
@@ -102,15 +101,16 @@ ObservadorCSMA::EnvioTerminado (Ptr<const Packet> paquete)
       m_pktRetrasado = false;
     }
   }
-}
+}*/
 
-
+/*
 //Funcion que maneja la traza MacTx
 void 
 ObservadorCSMA::OrdenEnvio (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION(paquete);
-NS_LOG_ERROR("MACTX:" << paquete->GetUid());
+  NS_LOG_ERROR("MACTX:" << paquete->GetUid());
+  NS_LOG_ERROR("Nodo: " << m_nodo);
   // Obtengo una copia del paquete
   Ptr<Packet> copia = paquete->Copy();
 
@@ -127,7 +127,7 @@ NS_LOG_ERROR("MACTX:" << paquete->GetUid());
     m_numPeticionesTx++;
   }
 
-}
+}*/
 
 /*
 //Funcion que maneja la traza MacRx
@@ -168,9 +168,10 @@ ObservadorCSMA::PktGenerado (Ptr<const Packet> paquete)
   NS_LOG_DEBUG ("Se ha generado un nuevo paquete y va a ser enviado.");
 
 NS_LOG_ERROR("TX:" << paquete->GetUid());
+NS_LOG_ERROR("Nodo: " << m_nodo);
   //Almacenamos el tiempo inicial.
   m_tiemposIniciales[paquete->GetUid()] = Simulator::Now();
-
+  m_numPeticionesTx++;
   NS_LOG_ERROR("tam_estruct: " << m_tiemposIniciales.size());
 }
 
@@ -181,6 +182,7 @@ ObservadorCSMA::PktRecibido (Ptr<const Packet> paquete, const Address &)
 {
   NS_LOG_FUNCTION (paquete);
 NS_LOG_ERROR("RX:" << paquete->GetUid());
+NS_LOG_ERROR("Nodo: " << m_nodo);
   //Buscamos en la estructura de timepos iniciales el correspondiente a este paquete.
   m_iterador = m_tiemposIniciales.find (paquete->GetUid());
 
@@ -204,7 +206,7 @@ NS_LOG_ERROR(result);
     NS_LOG_WARN("No se ha encontrado el paquete recibido en la estructura de tiempos iniciales."); 
 }
 
-
+/*
 //Devuelve el número medio de intentos necesarios para 
 //transmitir efectivamente un paquete del nodo asociado 
 //al objeto ObservadorCSMA.
@@ -220,15 +222,16 @@ ObservadorCSMA::GetMediaIntentos ()
     result = m_acIntentos.Mean();
 
   return result;
-
 }
-
+*/
+/*
 //Devuelve el porcentaje de pkts retrasados antes de ser enviados.  
 double
 ObservadorCSMA::GetPorcentajePktsRetrasados ()
 {
-  return (double)m_numPktsRetrasados/(double)m_numPeticionesTx;
+  return 100*(double)m_numPktsRetrasados/(double)m_numPeticionesTx;
 }
+*/
 
 //Devuelve el tiempo medio de ECO del nodo asociado al
 //objeto ObservadorCSMA. Se devuelve en ns.
@@ -246,7 +249,7 @@ ObservadorCSMA::GetMediaTiempos ()
   return result;
 }
 
-/*
+
 //Devuelve el porcentaje de paquetes perdidos al llegar al 
 //numero maximo de intentos configurado.
 double  
@@ -261,7 +264,7 @@ ObservadorCSMA::GetPorcentajePktsPerdidos()
 
   return result;
 }
-*/
+
 
 DataRate
 ObservadorCSMA::GetTasaMedia () {

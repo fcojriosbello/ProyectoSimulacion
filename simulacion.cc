@@ -34,7 +34,7 @@ main (int argc, char *argv[])
 	GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 	Time::SetResolution (Time::NS);
 
-simulacionCSMA_FTP ((uint32_t) 2, Time("6560ns"), DataRate("10Mbps"), (uint32_t)1000);
+simulacionCSMA_FTP ((uint32_t) 50, Time("6560ns"), DataRate("10Mbps"), (uint32_t)40);
 
 
 /*
@@ -169,7 +169,7 @@ simulacionCSMA_FTP (uint32_t nCsma, Time retardoProp, DataRate capacidad, uint32
     stack.Install (csmaNodes);
     // Y les asignamos direcciones
     Ipv4AddressHelper address;
-    address.SetBase ("10.1.2.0", "255.255.255.0");
+    address.SetBase ("10.0.0.0", "255.255.255.0");
     Ipv4InterfaceContainer csmaInterfaces = address.Assign (csmaDevices);            
 
     // Cálculo de rutas
@@ -177,16 +177,17 @@ simulacionCSMA_FTP (uint32_t nCsma, Time retardoProp, DataRate capacidad, uint32
 
     /////////// Instalación de las aplicaciones
     // Servidor
-    uint16_t port = 21;
+    uint16_t port = 9;
     PacketSinkHelper sink ("ns3::TcpSocketFactory",
                      Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
+    sink.SetAttribute ("Protocol", TypeIdValue (TcpSocketFactory::GetTypeId ()));
     ApplicationContainer sinkApp = sink.Install (csmaNodes.Get (0));
 
-    sinkApp.Start (Seconds (0));
-    sinkApp.Stop (Seconds (10));
+    sinkApp.Start (Seconds (1.0));
+    sinkApp.Stop (Seconds (10.0));
 
     // Clientes
-    AddressValue remoteAddress (InetSocketAddress (csmaInterfaces.GetAddress(0), port));
+    AddressValue remoteAddress (InetSocketAddress (csmaInterfaces.GetAddress(0,0), port));
     //Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (tcp_adu_size));
     BulkSendHelper ftp ("ns3::TcpSocketFactory", Address());
     ftp.SetAttribute ("Remote", remoteAddress);
@@ -198,31 +199,36 @@ simulacionCSMA_FTP (uint32_t nCsma, Time retardoProp, DataRate capacidad, uint32
         clientes.Add(csmaNodes.Get(i));
 
     ApplicationContainer sourceApp = ftp.Install (clientes);
-    sourceApp.Start (Seconds (1));
-    sourceApp.Stop (Seconds (9));
+    sourceApp.Start (Seconds (2.0));
+    sourceApp.Stop (Seconds (9.0));
 
     // Suscribimos un objeto Observador a las trazas de cada nodo.
-    //Nodo 0 es el servidor
-    ObservadorCSMA observadorCSMA[nCsma];
+    //Nodo 0 es el sumidero
+    ObservadorCSMA observadorCSMA;
 
     for (uint32_t j = 1; j < nCsma; j++)
     {
-        observadorCSMA[j].SetNodo((int)j);
-        observadorCSMA[j].SetTamPkt(tamPaquete);
-        csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTxBackoff", MakeCallback(&ObservadorCSMA::EnvioRetrasado, &observadorCSMA[j]));
-        csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxDrop", MakeCallback(&ObservadorCSMA::EnvioDescartado, &observadorCSMA[j]));
-        csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxEnd", MakeCallback(&ObservadorCSMA::EnvioTerminado, &observadorCSMA[j]));
-        csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTx", MakeCallback(&ObservadorCSMA::OrdenEnvio, &observadorCSMA[j]));
-        sourceApp.Get(j-1)->GetObject<BulkSendApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&ObservadorCSMA::PktGenerado, &observadorCSMA[0]));
+        observadorCSMA.SetNodo((int)j);
+        observadorCSMA.SetTamPkt(tamPaquete);
+        //csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTxBackoff", MakeCallback(&ObservadorCSMA::EnvioRetrasado, &observadorCSMA[j]));
+        csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxDrop", MakeCallback(&ObservadorCSMA::EnvioDescartado, &observadorCSMA));
+        //csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxEnd", MakeCallback(&ObservadorCSMA::EnvioTerminado, &observadorCSMA[j]));
+        //csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTx", MakeCallback(&ObservadorCSMA::OrdenEnvio, &observadorCSMA[j]));
+        sourceApp.Get(j-1)->GetObject<BulkSendApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&ObservadorCSMA::PktGenerado, &observadorCSMA));
             
         //Aprovechamos para cambiar el numero maximo de reintentos de tx 
         //csmaDevices.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, maxReintentos);
     }  
 
-    sinkApp.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorCSMA::PktRecibido, &observadorCSMA[0]));   
+    observadorCSMA.SetNodo((int)0);
+    observadorCSMA.SetTamPkt(tamPaquete);
+    sinkApp.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorCSMA::PktRecibido, &observadorCSMA));   
 
+    Simulator::Stop(Seconds(10.0));
     Simulator::Run ();
     Simulator::Destroy ();
 
-    NS_LOG_ERROR(observadorCSMA[0].GetMediaTiempos());
+    NS_LOG_ERROR(observadorCSMA.GetMediaTiempos());
+    //NS_LOG_ERROR(observadorCSMA[157].GetMediaIntentos());
+    //NS_LOG_ERROR(observadorCSMA[157].GetPorcentajePktsRetrasados ());
 }
