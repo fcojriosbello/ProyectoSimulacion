@@ -147,10 +147,10 @@ simulacionCSMA (30, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kb
     ficheroPorcentaje << "pause -1" << std::endl;
     ficheroPorcentaje.close();
     //-------------------------------------------------  
-
-    return 0;*/
+*/
+    return 0;
 }
-
+/*
 
 //Simulación simple para el servicio FTP usando CSMA
 void
@@ -234,7 +234,7 @@ simulacionCSMA_FTP (uint32_t nCsma, Time retardoProp, DataRate capacidad, uint32
     NS_LOG_ERROR(observadorCSMA.GetMediaTiempos());
     //NS_LOG_ERROR(observadorCSMA[157].GetMediaIntentos());
     //NS_LOG_ERROR(observadorCSMA[157].GetPorcentajePktsRetrasados ());
-}
+}*/
 
 
 //Simulación simple para el servicio VoIP usando CSMA
@@ -252,7 +252,7 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate);
   // Instalamos el dispositivo de red en los nodos de la LAN
   CsmaHelper csma;
   NetDeviceContainer csmaDevices;
-  csma.SetChannelAttribute ("DataRate", StringValue ("100Mbps"));
+  csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps"));
   csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (6560)));
   csmaDevices = csma.Install (csmaNodes);
 
@@ -285,8 +285,8 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate);
   Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
   Ptr<ExponentialRandomVariable> toffExponencial = CreateObject<ExponentialRandomVariable> ();
   // Especificamos las medias de estas variables
-  tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e6));
-  toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e6));
+  tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e9));
+  toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e9));
   // Asociamos las variables aleatorias al cliente OnOff   
   VoIP.SetAttribute("OnTime", PointerValue(tonExponencial));
   VoIP.SetAttribute("OffTime", PointerValue(toffExponencial));
@@ -317,9 +317,11 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate);
   app.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorCSMA::PktRecibido, &observadorCSMA));
     
   for (uint32_t j = 1; j < nCsma; j++)
+  {
     csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxDrop", MakeCallback(&ObservadorCSMA::EnvioDescartado, &observadorCSMA));
-
-
+    //Aprovechamos para cambiar el numero maximo de reintentos de tx 
+    csmaDevices.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 8);
+  }
   observadorCSMA.SetTamPkt(sizePkt);
 
 

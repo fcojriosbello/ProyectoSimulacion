@@ -63,14 +63,14 @@ ObservadorCSMA::EnvioDescartado (Ptr<const Packet> paquete)
   copia->RemoveHeader (header);
 
   // Comprobamos que sea un paquete ip (contiene el paquete eco).
-  if (header.GetLengthType() == 0x0800)
-  {
+  //if (header.GetLengthType() == 0x0800)
+  //{
     NS_LOG_DEBUG("NODO " << m_nodo <<"-> Se ha descartado el envio de un paquete porque ha llegado al maximo numero de intentos.");
     //m_numIntentos = 0;
     //m_pktRetrasado = false;
     //Aumentamos el numero de paquetes perdidos
     m_numPktsPerdidos++;
-  }
+  //}
 }
 /*//Funcion que maneja la traza PhyTxEnd
 void
