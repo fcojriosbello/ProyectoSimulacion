@@ -7,6 +7,7 @@
 #include "ns3/internet-module.h"
 #include "ns3/applications-module.h"
 #include <ns3/average.h>
+#include <ns3/error-model.h>
 #include "ns3/gnuplot.h"
 #include "ObservadorCSMA.h"
 
@@ -20,7 +21,7 @@ void simulacionCSMA_FTP (uint32_t nCsma, Time retardoProp, DataRate capacidad,
         uint32_t tamPaquete);
 //Simulación simple para el servicio VoIP usando CSMA
 void
-simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate);
+simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt);
 
 
 
@@ -34,11 +35,11 @@ int
 main (int argc, char *argv[])
 {
 	GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
-	Time::SetResolution (Time::NS);
+	Time::SetResolution (Time::US);
 
 //simulacionCSMA_FTP ((uint32_t) 50, Time("6560ns"), DataRate("10Mbps"), (uint32_t)40);
 //Simulación simple para el servicio VoIP usando CSMA
-simulacionCSMA (30, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"));
+simulacionCSMA (10, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 0.2);
 
 /*
     //Variable para el calculo del intervalo de confianza.
@@ -239,10 +240,15 @@ simulacionCSMA_FTP (uint32_t nCsma, Time retardoProp, DataRate capacidad, uint32
 
 //Simulación simple para el servicio VoIP usando CSMA
 void
-simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate)
+simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt)
 {
-NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate);
+NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt);
 
+  // Creamos el modelo de error y le asociamos los parametros
+  Ptr<RateErrorModel> modelo_error = CreateObject<RateErrorModel> ();
+
+  modelo_error->SetRate(prob_error_pkt);
+  modelo_error->SetUnit(RateErrorModel::ERROR_UNIT_PACKET);
 
   // Nodos que pertenecen a la red de área local
   // Como primer nodo añadimos el sumidero.
@@ -255,6 +261,10 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate);
   csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps"));
   csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (6560)));
   csmaDevices = csma.Install (csmaNodes);
+
+  //Configuramos el error del canal en las interfaces
+  for (uint32_t k = 0; k < nCsma; k++ )
+  csmaDevices.Get (k)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error));
 
   // Instalamos la pila TCP/IP en todos los nodos
   InternetStackHelper stack;
@@ -301,7 +311,7 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate);
   //Instalamos la aplicación On/Off en todos y cada uno de los nodos de la red de área local.
   ApplicationContainer clientApps = VoIP.Install (clientes);
   clientApps.Start (Seconds (2.0));
-  clientApps.Stop (Seconds (10.0));
+  clientApps.Stop (Seconds (100.0));
 
   // Activamos las trazas pcap en las dos interfaces del nodo de enlace
   //csma.EnablePcap ("practica06", csmaDevices.Get (0), true);
@@ -329,7 +339,7 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate);
   Simulator::Run ();
   Simulator::Destroy ();
 
-  double retardo = observadorCSMA.GetMediaTiempos()/1e6;
+  double retardo = observadorCSMA.GetMediaTiempos()/1e3;
   double pktsCorrectos = observadorCSMA.GetPorcentajePktsPerdidos();
 
   NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");

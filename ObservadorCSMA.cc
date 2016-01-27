@@ -277,7 +277,7 @@ ObservadorCSMA::GetTasaMedia () {
     //El tamaño de paquete es fijo.
     //Obtenemos la tasa media a nivel de aplicación dividiendo el tamaño de la carga útil
     //entre el tiempo medio de recepción de un pkt a nivel de aplicación.
-    result = DataRate((uint64_t)(m_tamPkt*8)/(uint64_t)(this->GetMediaTiempos() * 1e-9));
+    result = DataRate((uint64_t)(m_tamPkt*8)/(uint64_t)(this->GetMediaTiempos() * 1e-6));
   else 
     result = DataRate("0bps");
 
