@@ -12,7 +12,7 @@
 #include "ObservadorCSMA.h"
 
 #define T_STUDENT 2.2622	//GENERICA, habrá que cambiarla al final
-#define SIMULACIONES 1	//HAbrá que modificarlo
+#define SIMULACIONES 5	//HAbrá que modificarlo
 
 #define CSMA 0
 #define ALOHA 1
@@ -20,7 +20,7 @@
 
 //Simulación simple para el servicio VoIP usando CSMA
 void
-simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt, double& retardo, double& porcentaje);
+simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt, double& retardo, double& porcentaje, double& tasa);
 
 using namespace ns3;
 
@@ -39,53 +39,117 @@ main (int argc, char *argv[])
 {
 	GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 	Time::SetResolution (Time::US);
+	double perrorCSMA     = 1e-10;
+	//double perrorALOHA    = 1e-4;
 	double porcentaje     = 0.0;
 	double retardo        = 0.0;
+	double tasa           = 0.0;
 	//std::string protocolo [] = {'CSMA', 'ALOHA', 'TONKEN RING'}
 
 	Average<double> acu_porcentaje;
-/*	Average<double> acu_retardo; */
+	Average<double> acu_retardo; 
+	Average<double> acu_tasa;
 
 	Gnuplot plotPorcentaje;
-	plotPorcentaje.SetTitle("Porcentaje de paquetes correctamente transmitidos");
-	plotPorcentaje.SetLegend( "Número de nodos", "Porcentaje de Paquetes Tx correctamente (%)");
-
+	plotPorcentaje.SetTitle("Porcentaje de paquetes erróneos");
+	plotPorcentaje.SetLegend( "Número de nodos", "Porcentaje de Paquetes erróneos (%)");
+	
+	Gnuplot plotRetardo;
+	plotRetardo.SetTitle("Retardo medio");
+	plotRetardo.SetLegend( "Número de nodos", "Retardo medio (ms)");
+	
+  Gnuplot plotTasa;
+	plotTasa.SetTitle("Tasa efectiva");
+	plotTasa.SetLegend( "Número de nodos", "Tasa efectiva (Mbps)");
+	
+  /* Hay que cambiar prot < 1 por prot < 3 */
 	for (int prot = CSMA; prot < 1; prot++)
 	{
 		std::stringstream sstm;
 	//	sstm << "Protocolo: " << protocolo[prot];
-		sstm << "Protocolo: " << "CSMA";
+	  if (prot == CSMA)
+		  sstm << "Protocolo: " << "CSMA";
+		/*else if (prot == ALOHA)
+		  sstm << "Protocolo: " << "ALOHA";
+		*/
 		std::string titleProt = sstm.str();
 
-		Gnuplot2dDataset datosPorcentaje;
-		datosPorcentaje.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-		datosPorcentaje.SetErrorBars(Gnuplot2dDataset::Y);
-		datosPorcentaje.SetTitle(titleProt);
+    // Dataset para CSMA: porcentaje de errores, retardo medio y tasa efectiva media
+		Gnuplot2dDataset datosPorcentajeCSMA;
+		datosPorcentajeCSMA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+		datosPorcentajeCSMA.SetErrorBars(Gnuplot2dDataset::Y);
+		datosPorcentajeCSMA.SetTitle(titleProt);
+		
+		Gnuplot2dDataset datosRetardoCSMA;
+		datosRetardoCSMA.SetErrorBars(Gnuplot2dDataset::Y);
+		datosRetardoCSMA.SetTitle(titleProt);
+		
+		Gnuplot2dDataset datosTasaCSMA;
+		datosTasaCSMA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+		datosTasaCSMA.SetErrorBars(Gnuplot2dDataset::Y);
+		datosTasaCSMA.SetTitle(titleProt);
+		
+		/*
+		// Dataset para ALOHA
+		Gnuplot2dDataset datosPorcentajeALOHA;
+		datosPorcentajeALOHA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+		datosPorcentajeALOHA.SetErrorBars(Gnuplot2dDataset::Y);
+		datosPorcentajeALOHA.SetTitle(titleProt);
+		
+		Gnuplot2dDataset datosRetardoALOHA;
+		datosRetardoALOHA.SetErrorBars(Gnuplot2dDataset::Y);
+		datosRetardoALOHA.SetTitle(titleProt);
+		
+		Gnuplot2dDataset datosTasaALOHA;
+		datosTasaALOHA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+		datosTasaALOHA.SetErrorBars(Gnuplot2dDataset::Y);
+		datosTasaALOHA.SetTitle(titleProt);
+		*/
 
-	for ( int numNodos = 2; numNodos < 5; numNodos++)
+	for (int numNodos = 10; numNodos < 100; numNodos+=10)
 	{
-		for(uint32_t numSimulaciones=0; numSimulaciones < SIMULACIONES; numSimulaciones++)
+	  NS_LOG_DEBUG("Número de nodos " << numNodos);
+		for(uint32_t numSimulaciones = 0; numSimulaciones < SIMULACIONES; numSimulaciones++)
 		{
 			NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
 			if (prot==CSMA){
-			simulacionCSMA (250, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 1e-4, porcentaje, retardo);
-			acu_porcentaje.Update(porcentaje);
-		/*	acu_retardo.Update(retardo); */
+			  NS_LOG_DEBUG("Protocolo: CSMA");
+			  simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), perrorCSMA, retardo, porcentaje, tasa);
+			  acu_porcentaje.Update(porcentaje);
+		    acu_retardo.Update(retardo);
+		    acu_tasa.Update(tasa);
 			}
-			/*else if ()
-			RESTO DE PROTOCOLOS
-
+			/*else if (prot==ALOHA)
+			simulacionALOHA();
+      acu_porcentaje.Update(porcentaje);
+      acu_retardo.Update(retardo);
+      acu_tasa.Update(tasa);
 			*/
-			if(acu_porcentaje.Count() > 0)
-				datosPorcentaje.Add( numNodos, acu_porcentaje.Mean(), CalculaZ(acu_porcentaje.Var()));
-				acu_porcentaje.Reset();
-		/*	if(acu_retardo.Count() > 0)
-				datosRetardo.Add( ton_for, acu_retardo.Mean(), CalculaZ(acu_retardo.Var()));
-				acu_retardo.Reset();*/
+
 		}
-		plotPorcentaje.AddDataset(datosPorcentaje);
-	/*  plotRetardo.AddDataset(datosRetardo);*/
+		
+		// Añadimos los datos al punto para las tres gráficas
+		if(acu_porcentaje.Count() > 0)
+			datosPorcentaje.Add(numNodos, acu_porcentaje.Mean(), CalculaZ(acu_porcentaje.Var()));
+		acu_porcentaje.Reset();
+		
+		if(acu_retardo.Count() > 0)
+			datosRetardo.Add(numNodos, acu_retardo.Mean(), CalculaZ(acu_retardo.Var()));
+		acu_retardo.Reset();
+		
+		if(acu_tasa.Count() > 0)
+			datosTasa.Add(numNodos, acu_tasa.Mean(), CalculaZ(acu_tasa.Var()));
+		acu_tasa.Reset();
+	  
 		}
+		
+		// Añadimos los dataset a cada gráfica
+		plotPorcentaje.AddDataset(datosPorcentajeCSMA);
+		//plotPorcentaje.AddDataset(datosPorcentajeALOHA);
+		plotRetardo.AddDataset(datosRetardoCSMA);
+		//plotPorcentaje.AddDataset(datosTasaALOHA);
+		plotTasa.AddDataset(datosTasaCSMA);
+		//plotPorcentaje.AddDataset(datosTasaALOHA);
 	}
 
 std::ofstream fichero1("proyecto-1.plt");
@@ -93,12 +157,15 @@ plotPorcentaje.GenerateOutput(fichero1);
 fichero1 << "pause -1" << std::endl;
 fichero1.close();
 
-/*
-std::ofstream fichero1("proyecto-2.plt");
-plotPorcentaje.GenerateOutput(fichero1);
-fichero1 << "pause -1" << std::endl;
-fichero1.close();
-*/
+std::ofstream fichero2("proyecto-2.plt");
+plotRetardo.GenerateOutput(fichero2);
+fichero2 << "pause -1" << std::endl;
+fichero2.close();
+
+std::ofstream fichero3("proyecto-3.plt");
+plotTasa.GenerateOutput(fichero3);
+fichero3 << "pause -1" << std::endl;
+fichero3.close();
 
 return 0;
 }
@@ -113,9 +180,10 @@ simulacionCSMA (uint32_t nCsma,
 								DataRate dataRate,
 								double prob_error_pkt,
 								double& retardo,
-								double& porcentaje)
+								double& porcentaje,
+								double& tasa)
 {
-NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt << retardo << porcentaje);
+NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt << retardo << porcentaje << tasa);
 
   // Creamos el modelo de error y le asociamos los parametros
   Ptr<RateErrorModel> modelo_error = CreateObject<RateErrorModel> ();
@@ -209,8 +277,10 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt <<
 
   retardo = observadorCSMA.GetMediaTiempos()/1e3;
   porcentaje = observadorCSMA.GetPorcentajePktsPerdidos();
+  tasa = observadorCSMA.GetTasaMedia()/1e6;
 
   NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
   NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
+  NS_LOG_INFO("Tasa media efectiva: " << tasa << "Mbps");
 
 }
