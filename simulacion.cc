@@ -68,7 +68,7 @@ main (int argc, char *argv[])
 		{
 			NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
 			if (prot==CSMA){
-			simulacionCSMA (250, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 1e-4, &porcentaje, &retardo);
+			simulacionCSMA (250, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 1e-4, porcentaje, retardo);
 			acu_porcentaje.Update(porcentaje);
 		/*	acu_retardo.Update(retardo); */
 			}
@@ -112,8 +112,8 @@ simulacionCSMA (uint32_t nCsma,
 								uint32_t sizePkt,
 								DataRate dataRate,
 								double prob_error_pkt,
-								double * retardo,
-								double * porcentaje)
+								double& retardo,
+								double& porcentaje)
 {
 NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt << retardo << porcentaje);
 
@@ -207,10 +207,10 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt <<
   Simulator::Run ();
   Simulator::Destroy ();
 
-  *retardo = observadorCSMA.GetMediaTiempos()/1e3;
-  *porcentaje = observadorCSMA.GetPorcentajePktsPerdidos();
+  retardo = observadorCSMA.GetMediaTiempos()/1e3;
+  porcentaje = observadorCSMA.GetPorcentajePktsPerdidos();
 
-  NS_LOG_INFO("Retardo de transmisión medio: " <<  *retardo << "ms");
-  NS_LOG_INFO("Porcentaje de paquetes perdidos: " << *porcentaje << "%");
+  NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
+  NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
 
 }
