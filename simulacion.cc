@@ -6,9 +6,12 @@
 #include "ns3/csma-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/applications-module.h"
-#include <adhoc-aloha-noack-ideal-phy-helper.h>
+#include <ns3/adhoc-aloha-noack-ideal-phy-helper.h>
+#include <ns3/wifi-spectrum-value-helper.h>
 #include <ns3/average.h>
 #include <ns3/error-model.h>
+#include <ns3/spectrum-helper.h>
+#include <ns3/spectrum-channel.h>
 #include "ns3/gnuplot.h"
 #include "ObservadorCSMA.h"
 
@@ -22,6 +25,9 @@
 //Simulación simple para el servicio VoIP usando CSMA
 void
 simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt, double& retardo, double& porcentaje);
+void
+simulacionAloha (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt, double& retardo, double& porcentaje);
+
 
 using namespace ns3;
 
@@ -42,64 +48,9 @@ main (int argc, char *argv[])
 	Time::SetResolution (Time::US);
 	double porcentaje     = 0.0;
 	double retardo        = 0.0;
-	//std::string protocolo [] = {'CSMA', 'ALOHA', 'TONKEN RING'}
 
-	Average<double> acu_porcentaje;
-/*	Average<double> acu_retardo; */
+	simulacionAloha (30, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 1e-4,  retardo, porcentaje);
 
-	Gnuplot plotPorcentaje;
-	plotPorcentaje.SetTitle("Porcentaje de paquetes correctamente transmitidos");
-	plotPorcentaje.SetLegend( "Número de nodos", "Porcentaje de Paquetes Tx correctamente (%)");
-
-	for (int prot = CSMA; prot < 1; prot++)
-	{
-		std::stringstream sstm;
-	//	sstm << "Protocolo: " << protocolo[prot];
-		sstm << "Protocolo: " << "CSMA";
-		std::string titleProt = sstm.str();
-
-		Gnuplot2dDataset datosPorcentaje;
-		datosPorcentaje.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-		datosPorcentaje.SetErrorBars(Gnuplot2dDataset::Y);
-		datosPorcentaje.SetTitle(titleProt);
-
-	for ( int numNodos = 2; numNodos < 5; numNodos++)
-	{
-		for(uint32_t numSimulaciones=0; numSimulaciones < SIMULACIONES; numSimulaciones++)
-		{
-			NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
-			if (prot==CSMA){
-			simulacionCSMA (250, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 1e-4, porcentaje, retardo);
-			acu_porcentaje.Update(porcentaje);
-		/*	acu_retardo.Update(retardo); */
-			}
-			/*else if ()
-			RESTO DE PROTOCOLOS
-
-			*/
-			if(acu_porcentaje.Count() > 0)
-				datosPorcentaje.Add( numNodos, acu_porcentaje.Mean(), CalculaZ(acu_porcentaje.Var()));
-				acu_porcentaje.Reset();
-		/*	if(acu_retardo.Count() > 0)
-				datosRetardo.Add( ton_for, acu_retardo.Mean(), CalculaZ(acu_retardo.Var()));
-				acu_retardo.Reset();*/
-		}
-		plotPorcentaje.AddDataset(datosPorcentaje);
-	/*  plotRetardo.AddDataset(datosRetardo);*/
-		}
-	}
-
-std::ofstream fichero1("proyecto-1.plt");
-plotPorcentaje.GenerateOutput(fichero1);
-fichero1 << "pause -1" << std::endl;
-fichero1.close();
-
-/*
-std::ofstream fichero1("proyecto-2.plt");
-plotPorcentaje.GenerateOutput(fichero1);
-fichero1 << "pause -1" << std::endl;
-fichero1.close();
-*/
 
 return 0;
 }
@@ -249,16 +200,23 @@ NS_LOG_FUNCTION(nClientes << ton << toff << sizePkt << dataRate << prob_error_pk
   SpectrumChannelHelper channelHelper = SpectrumChannelHelper::Default ();
   Ptr<SpectrumChannel> channel = channelHelper.Create ();
 
+  WifiSpectrumValue5MhzFactory sf;
+  double txPower = 0.1; // Watts
+  uint32_t channelNumber = 1;
+  Ptr<SpectrumValue> txPsd = sf.CreateTxPowerSpectralDensity (txPower, channelNumber);
+
+  double k = 1.381e-23; //Boltzmann's constant
+  double T = 290; // temperature in Kelvin
+  double noisePsdValue = k * T; // watts per hertz
+  Ptr<SpectrumValue> noisePsd = sf.CreateConstant (noisePsdValue);
+
   AdhocAlohaNoackIdealPhyHelper deviceHelper;
   deviceHelper.SetChannel (channel);
-
+  deviceHelper.SetTxPowerSpectralDensity (txPsd);
+  deviceHelper.SetNoisePowerSpectralDensity (noisePsd);
   deviceHelper.SetPhyAttribute ("Rate", DataRateValue (DataRate ("10Mbps")));
 
   alohaDevices = deviceHelper.Install (alohaNodes);
-
-  //Configuramos el error del canal en las interfaces
-  for (uint32_t k = 0; k < nClientes; k++ )
-  alohaDevices.Get (k)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error));
 
   // Instalamos la pila TCP/IP en todos los nodos
   InternetStackHelper stack;
