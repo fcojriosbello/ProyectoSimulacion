@@ -11,3 +11,8 @@ y en cada gráfica 3 curvas (1 por cada protocolo: ALOHA, CSMA-CD y Token Ring).
 Habrá 6 simulaciones distintas (2 aplicaciones por 3 protocolos), aunque serán muy parecidas.
 
 La aplicación VoIP se hace con cliente on/off y FTP se hace con BulkSendApplication.
+
+En simulacion.cc
+
+-Se tiene la estructura completa, solo queda añadir las distintas gráficas finales
+-Se tiene un bucle for para identificar los protocolos. Y se anidan en él los otros relativos a parámetros y número de simulación.
