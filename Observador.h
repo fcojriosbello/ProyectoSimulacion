@@ -17,7 +17,7 @@ public:
   void      PktRecibido (Ptr<const Packet> paquete, const Address &);
   double    GetMediaTiempos ();
   double 	  GetPorcentajePktsPerdidos ();
-  DataRate  GetTasaMedia();
+  double  GetTasaMedia();
   void      SetNodo (int nodo);
   int       GetNodo ();
   void      SetTamPkt (uint32_t tamPkt);
