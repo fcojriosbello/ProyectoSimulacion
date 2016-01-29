@@ -1,18 +1,13 @@
 Ficheros a crear:
- · simulacion.cc -> que tendrá tantas funciones como protocolos de acceso al medio
- · Tantos observadores (.cc y .h) como protocolos de acceso al medio
+ · simulacion.cc -> que tendrá tantas funciones como protocolos de acceso al medio.
+ · Un Observador a nivel de aplicación para todos los escenarios (.cc y .h).
 
-Para no simular todo en el mismo equipo, se ejecutará cada función por separado en cada equipo
-(se puede meter un switch case o algo así para hacer esto con el mismo código).
+Se estudiará una aplicación VoIP; habrá 3 gráficas (especificadas en el diario de grupo),
+y en cada gráfica 2 curvas (1 por cada protocolo CSMA-CD y Wifi).
 
-Se estudiarán 2 aplicaciones (VoIP y FTP); por cada aplicaciones habrá 4 gráficas (especificadas en el diario de grupo),
-y en cada gráfica 3 curvas (1 por cada protocolo: ALOHA, CSMA-CD y Token Ring).
+Se realizarán tres simulaciones diferentes en la que se modelarán 3 escenarios distintos en función 
+de la QoS.
 
-Habrá 6 simulaciones distintas (2 aplicaciones por 3 protocolos), aunque serán muy parecidas.
+La aplicación VoIP se hace con cliente on/off.
 
-La aplicación VoIP se hace con cliente on/off y FTP se hace con BulkSendApplication.
-
-En simulacion.cc
-
--Se tiene la estructura completa, solo queda añadir las distintas gráficas finales
--Se tiene un bucle for para identificar los protocolos. Y se anidan en él los otros relativos a parámetros y número de simulación.
+Falta crear un utils.cc donde se añadirá cada una de las funciones que realizan las simulaciones.
