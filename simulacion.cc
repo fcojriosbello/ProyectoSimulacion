@@ -13,6 +13,7 @@
 #include <ns3/error-model.h>
 #include "ns3/gnuplot.h"
 #include "Observador.h"
+#include <cmath>
 
 #define T_STUDENT 2.2622  //GENERICA, habrá que cambiarla al final
 #define SIMULACIONES 1  //HAbrá que modificarlo
@@ -24,7 +25,7 @@
 #define MAXWIFI 18
 #define NWIFI 100
 #define PUNTOSDIST 25
-#define OFFSET 5
+
 
 //Simulación simple para el servicio VoIP usando CSMA
 void
@@ -348,9 +349,13 @@ simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt,
   Ptr < ListPositionAllocator > localizaciones =
     CreateObject < ListPositionAllocator > ();
 
-  localizaciones->Add(Vector(0, 0, 0));
-  uint32_t dist = 2 + OFFSET;
-  localizaciones->Add(Vector(dist, 0, 0));
+    //Añadimos las posibles localizaciones para los nodos.
+  for(uint32_t i = 0; i <= sqrt(num_nodos); i++)
+    {
+      for (uint32_t j = 0; j <= sqrt(num_nodos); j++)
+        localizaciones->Add(Vector(i, j, 0));
+    }
+  
   ayudanteMovilidad.SetPositionAllocator(localizaciones);
   ayudanteMovilidad.SetMobilityModel
     ("ns3::ConstantPositionMobilityModel");
