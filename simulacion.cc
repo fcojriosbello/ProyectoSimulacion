@@ -9,7 +9,7 @@
 #include <ns3/average.h>
 #include <ns3/error-model.h>
 #include "ns3/gnuplot.h"
-#include "ObservadorCSMA.h"
+#include "Observador.h"
 
 #define T_STUDENT 2.2622	//GENERICA, habrá que cambiarla al final
 #define SIMULACIONES 1	//HAbrá que modificarlo
@@ -187,28 +187,28 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt <<
   clientApps.Stop (Seconds (20.0));
 
   //Objeto observador para obtener los resultados de las simulaciones.
-  ObservadorCSMA observadorCSMA;
+  Observador observador;
 
   for (uint32_t i = 0; i < clientApps.GetN(); i++)
     //Conectamos las trazas al observador para todos los clientes.
-    clientApps.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&ObservadorCSMA::PktGenerado, &observadorCSMA));
+    clientApps.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&Observador::PktGenerado, &observador));
 
   //Conectamos la traza del sumidero al observador.
-  app.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorCSMA::PktRecibido, &observadorCSMA));
+  app.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&Observador::PktRecibido, &observador));
 
   for (uint32_t j = 1; j < nCsma; j++)
   {
     //Aprovechamos para cambiar el numero maximo de reintentos de tx
     csmaDevices.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 8);
   }
-  observadorCSMA.SetTamPkt(sizePkt);
+  observador.SetTamPkt(sizePkt);
 
   // Lanzamos la simulación
   Simulator::Run ();
   Simulator::Destroy ();
 
-  retardo = observadorCSMA.GetMediaTiempos()/1e3;
-  porcentaje = observadorCSMA.GetPorcentajePktsPerdidos();
+  retardo = observador.GetMediaTiempos()/1e3;
+  porcentaje = observador.GetPorcentajePktsPerdidos();
 
   NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
   NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");

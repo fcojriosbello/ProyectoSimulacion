@@ -8,10 +8,10 @@
 using namespace ns3;
 
 
-class ObservadorCSMA
+class Observador
 {
 public:
-  ObservadorCSMA  ();
+  Observador  ();
   void      EnvioDescartado (Ptr<const Packet> paquete);
   void      PktGenerado (Ptr<const Packet> paquete);
   void      PktRecibido (Ptr<const Packet> paquete, const Address &);

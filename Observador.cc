@@ -2,13 +2,13 @@
 
 #include <ns3/core-module.h>
 #include <ns3/ethernet-header.h>
-#include "ObservadorCSMA.h"
+#include "Observador.h"
 
 
-NS_LOG_COMPONENT_DEFINE ("ObservadorCSMA");
+NS_LOG_COMPONENT_DEFINE ("Observador");
 
 
-ObservadorCSMA::ObservadorCSMA ()
+Observador::Observador ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
@@ -23,7 +23,7 @@ ObservadorCSMA::ObservadorCSMA ()
 
 //Funcion que maneja la traza Tx
 void
-ObservadorCSMA::PktGenerado (Ptr<const Packet> paquete)
+Observador::PktGenerado (Ptr<const Packet> paquete)
 {
   NS_LOG_FUNCTION (paquete);
 
@@ -37,7 +37,7 @@ ObservadorCSMA::PktGenerado (Ptr<const Packet> paquete)
 
 //Funcion que maneja la traza Rx
 void
-ObservadorCSMA::PktRecibido (Ptr<const Packet> paquete, const Address &)
+Observador::PktRecibido (Ptr<const Packet> paquete, const Address &)
 {
   NS_LOG_FUNCTION (paquete);
 
@@ -65,9 +65,9 @@ ObservadorCSMA::PktRecibido (Ptr<const Packet> paquete, const Address &)
 
 
 //Devuelve el tiempo medio de ECO del nodo asociado al
-//objeto ObservadorCSMA. Se devuelve en ns.
+//objeto Observador. Se devuelve en ns.
 double
-ObservadorCSMA::GetMediaTiempos ()
+Observador::GetMediaTiempos ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
@@ -84,7 +84,7 @@ ObservadorCSMA::GetMediaTiempos ()
 //Devuelve el porcentaje de paquetes perdidos al llegar al 
 //numero maximo de intentos configurado.
 double  
-ObservadorCSMA::GetPorcentajePktsPerdidos()
+Observador::GetPorcentajePktsPerdidos()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
@@ -98,7 +98,7 @@ ObservadorCSMA::GetPorcentajePktsPerdidos()
 
 
 DataRate
-ObservadorCSMA::GetTasaMedia () {
+Observador::GetTasaMedia () {
   NS_LOG_FUNCTION_NOARGS ();
 
   DataRate result;
@@ -116,10 +116,10 @@ ObservadorCSMA::GetTasaMedia () {
 }
 
 //Funcion para guardar en la variable m_nodo el identificador
-//del nodo al que esta asociado el ObservadorCSMA. Esto se usara 
+//del nodo al que esta asociado el Observador. Esto se usara 
 //en las trazas.
 void
-ObservadorCSMA::SetNodo (int nodo) 
+Observador::SetNodo (int nodo) 
 { 
   NS_LOG_FUNCTION(nodo);
   m_nodo = nodo; 
@@ -127,15 +127,15 @@ ObservadorCSMA::SetNodo (int nodo)
 
 
 //Funcion para obtener de la variable m_nodo el identificador
-//del nodo al que esta asociado el ObservadorCSMA. Esto se usara 
+//del nodo al que esta asociado el Observador. Esto se usara 
 //en las trazas.
 int     
-ObservadorCSMA::GetNodo () { return m_nodo; }
+Observador::GetNodo () { return m_nodo; }
 
-//Función para indicar al objeto ObservadorCSMA el tamaño de la 
+//Función para indicar al objeto Observador el tamaño de la 
 //carga útil de los pkts que serán enviados.
 void
-ObservadorCSMA::SetTamPkt (uint32_t tamPkt)
+Observador::SetTamPkt (uint32_t tamPkt)
 {
   NS_LOG_FUNCTION(tamPkt);
   m_tamPkt = tamPkt;
