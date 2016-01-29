@@ -6,381 +6,405 @@
 #include "ns3/csma-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/applications-module.h"
+#include "ns3/wifi-module.h"
+#include "ns3/mobility-module.h"
+#include "ns3/network-module.h"
 #include <ns3/average.h>
+#include <ns3/error-model.h>
 #include "ns3/gnuplot.h"
 #include "Observador.h"
 
-#define NUM_SIMULACIONES 10
-#define TSTUDENT10 2.2622
-#define DNI0 5
-#define DNI1 1
+#define T_STUDENT 2.2622  //GENERICA, habrá que cambiarla al final
+#define SIMULACIONES 1  //HAbrá que modificarlo
 
-//Estructura de datos para almacenar
-//los resultados medios de una unica simulacion
-typedef struct
-  {
-    double intentos;
-    double tiempo;
-    double porcentaje;
-  } ResultSimulacion;
+#define CSMA 0
+#define ALOHA 1
+#define TOKEN_RING 2 //Se modificará el valor cuando tengamos más protocolos
 
-//Estructura de datos para almacenar los
-//resultados meddios y las varianzas de 
-//varias simulaciones.
-//Notese la diferencia con la estructura anterior
-//ya que esta la usaremos para guardar el resultado
-//de varias simulaciones y la anterior solo para una.
-typedef struct 
-  {
-    ResultSimulacion medias;
-    ResultSimulacion varianzas;
-  } ResultSimulaciones;
+#define MAXWIFI 18
+#define NWIFI 100
+#define PUNTOSDIST 25
+#define OFFSET 5
 
-//Con esta funcion realizaremos NUM_SIMULACIONES simulaciones para cada punto de las graficas
-//Devuelve una estructura donde se alamacenan las medias y varianzas necesarias
-//para representar el punto de las graficas.Devuelve -1 en la variable correspondiente
-// si hay algun error (si no se ha contado ningun evento).
-ResultSimulaciones simulacion (uint32_t nCsma, Time retardoProp, DataRate capacidad, 
-        uint32_t tamPaquete, Time intervalo, int maxReintentos);
-
-//Funcion que obtiene los resultados de una simulacion a partir de los objetos
-//Observador. Devuelve -1 en la variable correspondiente si hay algun error 
-//(si no se ha contado ningun evento).
-ResultSimulacion ResultadosSimulacion (Observador *observador, uint32_t nCsma);
-
-
+//Simulación simple para el servicio VoIP usando CSMA
+void
+simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt, double& retardo, double& porcentaje, double& tasa);
+void
+simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt, 
+                DataRate dataRate, double& retardo, double& porcentaje, double& tasa);
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("practica05");
+NS_LOG_COMPONENT_DEFINE ("fuentes09");
 
+// Nos calcula la z para el intervalo de confianza
+double
+CalculaZ(double varianza)
+{
+    double z = T_STUDENT*sqrt(varianza/(SIMULACIONES));
+    return z;
+}
 
 int
 main (int argc, char *argv[])
 {
-	GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
-	Time::SetResolution (Time::NS);
+  GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
+  Time::SetResolution (Time::US);
+  //double perrorCSMA     = 1e-10;
+  //double perrorALOHA    = 1e-4;
+  double porcentaje     = 0.0;
+  double retardo        = 0.0;
+  double tasa           = 0.0;
+  //std::string protocolo [] = {'CSMA', 'ALOHA', 'TONKEN RING'}
 
-    //Variable para el calculo del intervalo de confianza.
-    double z = 0.0;
+  Average<double> acu_porcentaje;
+  Average<double> acu_retardo; 
+  Average<double> acu_tasa;
 
-	uint32_t nCsma = 10-DNI0/2;
-    Time retardoProp = Time("6560ns");
-    DataRate capacidad = DataRate("100Mbps");
-    uint32_t tamPaquete = 500+100*DNI1;
-    Time intervalo = Time("1s");
+  Gnuplot plotPorcentaje;
+  plotPorcentaje.SetTitle("Porcentaje de paquetes erróneos");
+  plotPorcentaje.SetLegend( "Número de nodos", "Porcentaje de Paquetes erróneos (%)");
+  
+  Gnuplot plotRetardo;
+  plotRetardo.SetTitle("Retardo medio");
+  plotRetardo.SetLegend( "Número de nodos", "Retardo medio (ms)");
+  
+  Gnuplot plotTasa;
+  plotTasa.SetTitle("Tasa efectiva");
+  plotTasa.SetLegend( "Número de nodos", "Tasa efectiva (Mbps)");
+  
+  /* Hay que cambiar prot < 1 por prot < 3 */
+  for (int prot = CSMA; prot < 1; prot++)
+  {
+    std::stringstream sstm;
+  //  sstm << "Protocolo: " << protocolo[prot];
+    if (prot == CSMA)
+      sstm << "Protocolo: " << "CSMA";
+    /*else if (prot == ALOHA)
+      sstm << "Protocolo: " << "ALOHA";
+    */
+    std::string titleProt = sstm.str();
 
-	CommandLine cmd;
-	cmd.AddValue ("nCsma", "Número de nodos de la red local", nCsma);
-    cmd.AddValue ("retardoProp", "Retardo de propagación en el bus", retardoProp );
-    cmd.AddValue ("capacidad", "Capacidad del bus", capacidad );
-    cmd.AddValue ("tamPaquete", "Tamaño de las SDU de aplicación", tamPaquete);
-    cmd.AddValue ("intervalo", "Tiempo entre dos paquetes consecutivos enviados por el mismo cliente", intervalo);
-
-	cmd.Parse (argc,argv);
-
-    NS_LOG_INFO ("Se han configurado los siguientes argumentos de entrada:" << std::endl <<
-                 "     -nCsma:           " << (unsigned int)nCsma  << std::endl <<
-                 "     -retardoProp:     " << retardoProp.GetDouble()/1e3 << "us" << std::endl <<
-                 "     -capacidad:       " << capacidad.GetBitRate()/1e6 << "Mbps" << std::endl <<
-                 "     -tamPaquete:      " << tamPaquete << "B" << std::endl <<
-                 "     -intervalo:       " << intervalo.GetDouble()/1e9 << "s" << std::endl);
-
-
-    // -----------Antes de simular, preparamos las graficas-------
-    Gnuplot grafIntentos;
-    grafIntentos.SetTitle ("Número medio de intentos para tx en función del número máximo de reintentos admisibles");
-    grafIntentos.SetLegend ("Número máximo de reintentos admisibles", 
-        "Numero medio de intentos para transmitir de los clientes");
-    Gnuplot2dDataset datosIntentos("intentos");
-    datosIntentos.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-    datosIntentos.SetErrorBars(Gnuplot2dDataset::Y);
-
-    Gnuplot grafTiempo;
-    grafTiempo.SetTitle ("Tiempo medio hasta recepción del eco en función del número máximo de reintentos admisibles");
-    grafTiempo.SetLegend ("Número máximo de reintentos admisibles", 
-        "Tiempo medio hasta recepción del eco (ms)");
-    Gnuplot2dDataset datosTiempo("tiempo de eco");
-    datosTiempo.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-    datosTiempo.SetErrorBars(Gnuplot2dDataset::Y);
-
-    Gnuplot grafPorcentaje;
-    grafPorcentaje.SetTitle ("Porcentaje de paquetes transmitidos en función del número máximo de reintentos admisibles");
-    grafPorcentaje.SetLegend ("Número máximo de reintentos admisibles", 
-        "Porcentaje de paquetes transmitidos correctamente (%)");
-    Gnuplot2dDataset datosPorcentaje("% pkts enviados");
-    datosPorcentaje.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-    datosPorcentaje.SetErrorBars(Gnuplot2dDataset::Y);
-    // ---------------------------------------------------------------------------------------------- 
-
-    ResultSimulaciones result;
-
-    for (int maxReintentos = 1; maxReintentos <= 15; maxReintentos++)
-    {
-
-        NS_LOG_INFO("-----------------Comenzamos el bloque de simulaciones para maxReintentos = " << maxReintentos << "-----------------");
-        result=simulacion(nCsma, retardoProp, capacidad, tamPaquete, intervalo, maxReintentos);
-
-
-        //Si los resultados son correctos, los introducimos en la grafica
-        if(result.medias.intentos != -1 and result.varianzas.intentos != -1)
-        {
-            //Calculamos el intervalo de confianza
-            z = TSTUDENT10*sqrt(result.varianzas.intentos/(NUM_SIMULACIONES));
-            // Añadimos los datos para representar en la grafica
-            datosIntentos.Add(maxReintentos, result.medias.intentos, z);
-        }
-
-        if(result.medias.tiempo != -1 and result.varianzas.tiempo != -1)   
-        {
-            //Calculamos el intervalo de confianza
-            z = TSTUDENT10*sqrt(result.varianzas.tiempo/(NUM_SIMULACIONES));
-            // Añadimos los datos para representar en la grafica
-            datosTiempo.Add(maxReintentos, result.medias.tiempo, z);
-        }
+    // Dataset para CSMA: porcentaje de errores, retardo medio y tasa efectiva media
+    Gnuplot2dDataset datosPorcentajeCSMA;
+    datosPorcentajeCSMA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+    datosPorcentajeCSMA.SetErrorBars(Gnuplot2dDataset::Y);
+    datosPorcentajeCSMA.SetTitle(titleProt);
     
-        if(result.medias.porcentaje != -1 and result.varianzas.porcentaje != -1)
-        {
-            //Calculamos el intervalo de confianza
-            z = TSTUDENT10*sqrt(result.varianzas.porcentaje/(NUM_SIMULACIONES));
-            // Añadimos los datos para representar en la grafica
-            datosPorcentaje.Add(maxReintentos, result.medias.porcentaje, z);
-        }
+    Gnuplot2dDataset datosRetardoCSMA;
+    datosRetardoCSMA.SetErrorBars(Gnuplot2dDataset::Y);
+    datosRetardoCSMA.SetTitle(titleProt);
+    
+    Gnuplot2dDataset datosTasaCSMA;
+    datosTasaCSMA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+    datosTasaCSMA.SetErrorBars(Gnuplot2dDataset::Y);
+    datosTasaCSMA.SetTitle(titleProt);
+    
+    /*
+    // Dataset para ALOHA
+    Gnuplot2dDataset datosPorcentajeALOHA;
+    datosPorcentajeALOHA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+    datosPorcentajeALOHA.SetErrorBars(Gnuplot2dDataset::Y);
+    datosPorcentajeALOHA.SetTitle(titleProt);
+    
+    Gnuplot2dDataset datosRetardoALOHA;
+    datosRetardoALOHA.SetErrorBars(Gnuplot2dDataset::Y);
+    datosRetardoALOHA.SetTitle(titleProt);
+    
+    Gnuplot2dDataset datosTasaALOHA;
+    datosTasaALOHA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+    datosTasaALOHA.SetErrorBars(Gnuplot2dDataset::Y);
+    datosTasaALOHA.SetTitle(titleProt);
+    */
+
+  for (int numNodos = 10; numNodos < 100; numNodos+=10)
+  {
+    NS_LOG_DEBUG("Número de nodos " << numNodos);
+    for(uint32_t numSimulaciones = 0; numSimulaciones < SIMULACIONES; numSimulaciones++)
+    {
+      NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
+      if (prot==CSMA){
+        NS_LOG_DEBUG("Protocolo: CSMA");
+        simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), retardo, porcentaje, tasa);
+        acu_porcentaje.Update(porcentaje);
+        acu_retardo.Update(retardo);
+        acu_tasa.Update(tasa);
+      }
+      /*else if (prot==ALOHA)
+      simulacionALOHA();
+      acu_porcentaje.Update(porcentaje);
+      acu_retardo.Update(retardo);
+      acu_tasa.Update(tasa);
+      */
+
     }
+    
+    // Añadimos los datos al punto para las tres gráficas
+    if(acu_porcentaje.Count() > 0)
+      datosPorcentajeCSMA.Add(numNodos, acu_porcentaje.Mean(), CalculaZ(acu_porcentaje.Var()));
+    acu_porcentaje.Reset();
+    
+    if(acu_retardo.Count() > 0)
+      datosRetardoCSMA.Add(numNodos, acu_retardo.Mean(), CalculaZ(acu_retardo.Var()));
+    acu_retardo.Reset();
+    
+    if(acu_tasa.Count() > 0)
+      datosTasaCSMA.Add(numNodos, acu_tasa.Mean(), CalculaZ(acu_tasa.Var()));
+    acu_tasa.Reset();
+    
+    }
+    
+    // Añadimos los dataset a cada gráfica
+    plotPorcentaje.AddDataset(datosPorcentajeCSMA);
+    //plotPorcentaje.AddDataset(datosPorcentajeALOHA);
+    plotRetardo.AddDataset(datosRetardoCSMA);
+    //plotPorcentaje.AddDataset(datosTasaALOHA);
+    plotTasa.AddDataset(datosTasaCSMA);
+    //plotPorcentaje.AddDataset(datosTasaALOHA);
+  }
 
-    //--------Introducimos los resultados en las graficas-----------------------------------
-    std::ofstream ficheroIntentos("practica05-01.plt");
-    grafIntentos.AddDataset(datosIntentos);
-    grafIntentos.GenerateOutput(ficheroIntentos);
-    ficheroIntentos << "pause -1" << std::endl;
-    ficheroIntentos.close();
+std::ofstream fichero1("proyecto-1.plt");
+plotPorcentaje.GenerateOutput(fichero1);
+fichero1 << "pause -1" << std::endl;
+fichero1.close();
 
-    std::ofstream ficheroTiempo("practica05-02.plt");
-    grafTiempo.AddDataset(datosTiempo);
-    grafTiempo.GenerateOutput(ficheroTiempo);
-    ficheroTiempo << "pause -1" << std::endl;
-    ficheroTiempo.close();
+std::ofstream fichero2("proyecto-2.plt");
+plotRetardo.GenerateOutput(fichero2);
+fichero2 << "pause -1" << std::endl;
+fichero2.close();
 
-    std::ofstream ficheroPorcentaje("practica05-03.plt");
-    grafPorcentaje.AddDataset(datosPorcentaje);
-    grafPorcentaje.GenerateOutput(ficheroPorcentaje);
-    ficheroPorcentaje << "pause -1" << std::endl;
-    ficheroPorcentaje.close();
-    //-------------------------------------------------  
+std::ofstream fichero3("proyecto-3.plt");
+plotTasa.GenerateOutput(fichero3);
+fichero3 << "pause -1" << std::endl;
+fichero3.close();
 
-    return 0;
+return 0;
 }
 
 
-
-
-//Funcion que obtiene los resultados de una simulacion a partir de los objetos
-//Observador. Devuelve -1 en la variable correspondiente si hay algun error 
-//(si no se ha contado ningun evento).
-ResultSimulacion
-ResultadosSimulacion (Observador *observador, uint32_t nCsma)
+//Simulación simple para el servicio VoIP usando CSMA
+void
+simulacionCSMA (uint32_t nCsma,
+                Time ton,
+                Time toff,
+                uint32_t sizePkt,
+                DataRate dataRate,
+                double prob_error_pkt,
+                double& retardo,
+                double& porcentaje,
+                double& tasa)
 {
-    NS_LOG_FUNCTION(observador << nCsma);
+NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt << retardo << porcentaje << tasa);
 
-    ResultSimulacion resultados = {-1, -1, -1};
+  // Creamos el modelo de error y le asociamos los parametros
+  Ptr<RateErrorModel> modelo_error = CreateObject<RateErrorModel> ();
 
-    //Objeto para guardar el numero de intentos medios de cada nodo.
-    Average<double> acIntentos;
-    //Objeto para guardar el tiempos medios (ns) de eco de cada nodo.
-    Average<double> acTiempos;
-    //Objeto para guardar los porcentajes de paquetes perdidos de cada nodo.
-    Average<double> acPorcentajes;
+  modelo_error->SetRate(prob_error_pkt);
+  modelo_error->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
-    //Obtenemos los resultados de la simulacion
-    //para el conjunto de nodos clientes menos el de indice 0.
-    for (uint32_t j = 3; j < nCsma-1; j++)
-    {
-        if (observador[j].GetMediaIntentos() != -1)
-        {
-            acIntentos.Update(observador[j].GetMediaIntentos());
-            NS_LOG_LOGIC ("Número medio de intentos necesarios para transmitir efectivamente un paquete en el nodo "
-                            << observador[j].GetNodo() << ": " << observador[j].GetMediaIntentos());
-        }
-        else
-            NS_LOG_LOGIC ("No se ha transmitido con exito ningun paquete en el nodo "
-                << observador[j].GetNodo());
+  // Nodos que pertenecen a la red de área local
+  // Como primer nodo añadimos el sumidero.
+  NodeContainer csmaNodes;
+  csmaNodes.Create (nCsma);
 
-        if (observador[j].GetMediaTiempos() != -1) 
-        {
-            //Actualizamos el acumulador de tiempos de eco.
-            acTiempos.Update(observador[j].GetMediaTiempos());
-            NS_LOG_LOGIC ("Tiempo medio de ECO en el nodo "
-                        << observador[j].GetNodo() << ": " << observador[j].GetMediaTiempos()/1e6 << " ms");
-        }
-        else
-            NS_LOG_LOGIC ("No se ha completado con exito ninguna peticion ECO en el nodo "
-                << observador[j].GetNodo());
+  // Instalamos el dispositivo de red en los nodos de la LAN
+  CsmaHelper csma;
+  NetDeviceContainer csmaDevices;
+  csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps"));
+  csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (6560)));
+  csmaDevices = csma.Install (csmaNodes);
 
-        if (observador[j].GetPorcentajePktsPerdidos() != -1)
-        {
-            acPorcentajes.Update(observador[j].GetPorcentajePktsPerdidos());
-            NS_LOG_LOGIC ("Porcentaje de paquetes enviados correctamente en el nodo "
-                << observador[j].GetNodo() << ": " << 100-observador[j].GetPorcentajePktsPerdidos() << "%");
-        }
-        else
-            NS_LOG_LOGIC ("No se ha podido obtener el porcentaje de paquetes enviados correctamente en el nodo " 
-                << observador[j].GetNodo());
-    }
+  //Configuramos el error del canal en las interfaces
+  for (uint32_t k = 0; k < nCsma; k++ )
+  csmaDevices.Get (k)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error));
 
-    if(acIntentos.Count() > 0)
-    {
-        NS_LOG_INFO ("Numero medio de intentos necesarios para transmitir un paquete en el conjunto de clientes: "
-             << acIntentos.Mean()); 
-        resultados.intentos = acIntentos.Mean();
-    }
-    else
-        NS_LOG_INFO ("No se ha transmitido ningun paquete correctamente.");
+  // Instalamos la pila TCP/IP en todos los nodos
+  InternetStackHelper stack;
+  stack.Install (csmaNodes);
 
-    if(acIntentos.Count() > 0)   
-    {
-        NS_LOG_INFO ("Tiempo medio de ECO en el conjunto de clientes: "
-             << acTiempos.Mean()/1e6 << " ms");
-        resultados.tiempo = acTiempos.Mean()/1e6;
-    }
-    else
-        NS_LOG_INFO ("No se ha completado con exito ninguna peticion ECO.");
+  // Asignamos direcciones a cada una de las interfaces
+  Ipv4AddressHelper address;
+  Ipv4InterfaceContainer csmaInterfaces;
+  address.SetBase ("10.1.1.0", "255.255.255.0");
+  csmaInterfaces = address.Assign (csmaDevices);
 
-    if(acPorcentajes.Count() > 0)
-    {
-        NS_LOG_INFO ("Porcentaje de paquetes enviados correctamente por el conjunto de clientes :"
-        << 100 - acPorcentajes.Mean() << "%");
-        resultados.porcentaje = 100 - acPorcentajes.Mean();
-    }
-    else
-        NS_LOG_INFO ("No se ha podido obtener el porcentaje de paquetes enviados correctamente por el conjunto de clientes.");
+  // Calculamos las rutas del escenario.
+  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
-    return resultados;
+
+  // Establecemos un sumidero para los paquetes en el puerto 9 del nodo
+  //     aislado del enlace punto a punto
+  uint16_t port = 9;
+  PacketSinkHelper sink ("ns3::UdpSocketFactory",
+                         Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
+  ApplicationContainer app = sink.Install (csmaNodes.Get (0));
+
+  // Instalamos un cliente OnOff en uno de los equipos de la red de área local
+  OnOffHelper VoIP ("ns3::UdpSocketFactory",
+                        Address (InetSocketAddress (csmaInterfaces.GetAddress (0), port)));
+
+  // Creamos las variables aleatorias para los tiempos de on y off
+  Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
+  Ptr<ExponentialRandomVariable> toffExponencial = CreateObject<ExponentialRandomVariable> ();
+  // Especificamos las medias de estas variables
+  tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e9));
+  toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e9));
+  // Asociamos las variables aleatorias al cliente OnOff
+  VoIP.SetAttribute("OnTime", PointerValue(tonExponencial));
+  VoIP.SetAttribute("OffTime", PointerValue(toffExponencial));
+  VoIP.SetAttribute("PacketSize", UintegerValue(sizePkt));
+  VoIP.SetAttribute("DataRate", DataRateValue(dataRate));
+
+  NodeContainer clientes;
+
+  for (uint32_t i = 1; i < nCsma; i++)
+    clientes.Add(csmaNodes.Get(i));
+
+  //Instalamos la aplicación On/Off en todos y cada uno de los nodos de la red de área local.
+  ApplicationContainer clientApps = VoIP.Install (clientes);
+  clientApps.Start (Seconds (2.0));
+  clientApps.Stop (Seconds (20.0));
+
+  //Objeto observador para obtener los resultados de las simulaciones.
+  Observador observador;
+
+  for (uint32_t i = 0; i < clientApps.GetN(); i++)
+    //Conectamos las trazas al observador para todos los clientes.
+    clientApps.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&Observador::PktGenerado, &observador));
+
+  //Conectamos la traza del sumidero al observador.
+  app.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&Observador::PktRecibido, &observador));
+
+  for (uint32_t j = 1; j < nCsma; j++)
+  {
+    //Aprovechamos para cambiar el numero maximo de reintentos de tx
+    csmaDevices.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 8);
+  }
+  observador.SetTamPkt(sizePkt);
+
+  // Lanzamos la simulación
+  Simulator::Run ();
+  Simulator::Destroy ();
+
+  retardo = observador.GetMediaTiempos()/1e3;
+  porcentaje = observador.GetPorcentajePktsPerdidos();
+  tasa = observador.GetTasaMedia()/1e6;
+
+
+  NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
+  NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
+  NS_LOG_INFO("Tasa media efectiva: " << tasa << "Mbps");
+
 }
 
-
-
-//Con esta funcion realizaremos NUM_SIMULACIONES simulaciones simples para cada punto de las graficas
-//Devuelve una estructura donde se alamacenan las medias y varianzas necesarias
-//para representar el punto de las graficas.Devuelve -1 en la variable correspondiente
-// si hay algun error (si no se ha contado ningun evento).
-ResultSimulaciones
-simulacion (uint32_t nCsma, Time retardoProp, DataRate capacidad, 
-    uint32_t tamPaquete, Time intervalo, int maxReintentos)
+void
+simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt, 
+                DataRate dataRate, double& retardo, double& porcentaje, double& tasa)
 {
-    NS_LOG_FUNCTION(nCsma << retardoProp << capacidad << tamPaquete << intervalo << maxReintentos);
+  NodeContainer nodos;
+  nodos.Create(num_nodos);
 
-    //Objeto para guardar el numero de intentos medios de cada simulacion.
-    Average<double> acIntentos;
-    //Objeto para guardar el tiempos medios (ns) de eco de cada simulacion.
-    Average<double> acTiempos;
-    //Objeto para guardar los porcentajes de paquetes perdidos de cada simulacion.
-    Average<double> acPorcentajes;
+  YansWifiChannelHelper canalWifi;
+  canalWifi.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
+  canalWifi.AddPropagationLoss("ns3::LogDistancePropagationLossModel", "Exponent", DoubleValue(3.0));
+  Ptr<YansWifiChannel> canal = canalWifi.Create();
 
-    ResultSimulaciones resultados = {{-1,-1,-1},{-1,-1,-1}};
-    
-    //Realizamos NUM_SIMULACIONES simulaciones con los parametros indicados.
-    for (int i = 0; i < NUM_SIMULACIONES; i++)
-    {
+  // Creamos el modelo de nivel PHY de las estaciones
+  YansWifiPhyHelper medioWifi;
+  // Establecemos el modelo de error
+  medioWifi.SetErrorRateModel("ns3::NistErrorRateModel");
+  // Le asociamos el canal
+  medioWifi.SetChannel(canal);
 
-        NodeContainer csmaNodes;
-        csmaNodes.Create (nCsma);
+  // Creamos el modelo de nivel MAC de las estaciones
+  NqosWifiMacHelper MACwifi;
+  // Seleccionamos modo AdHoc y sin soporte de QoS
+  MACwifi.SetType("ns3::AdhocWifiMac", "QosSupported", BooleanValue(false));
 
-        CsmaHelper csma;
-        csma.SetChannelAttribute ("DataRate", DataRateValue (capacidad));
-        csma.SetChannelAttribute ("Delay", TimeValue (retardoProp));
+  // Creamos el modelo para los dispositivos de red
+  WifiHelper wifi;
+  wifi.SetStandard(WIFI_PHY_STANDARD_80211a);
 
-        NetDeviceContainer csmaDevices;
-        csmaDevices = csma.Install (csmaNodes);
-        // Instalamos la pila TCP/IP en todos los nodos
-        InternetStackHelper stack;
-        stack.Install (csmaNodes);
-        // Y les asignamos direcciones
-        Ipv4AddressHelper address;
-        address.SetBase ("10.1.2.0", "255.255.255.0");
-        Ipv4InterfaceContainer csmaInterfaces = address.Assign (csmaDevices);
+  wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", StringValue("OfdmRate9Mbps"), "ControlMode", StringValue("OfdmRate9Mbps"));
+
+  // Y añadimos uno de estos dispositivos a cada uno de los nodos
+  NetDeviceContainer dispositivosWifi = wifi.Install(medioWifi, MACwifi, nodos);
+
+  // Instalamos la pila TCP/IP en los nodos
+  InternetStackHelper stack;
+  stack.Install(nodos);
+
+  // Asignamos direcciones a los dispositivos
+  Ipv4AddressHelper address;
+  address.SetBase("192.168.1.0", "255.255.255.0");
+  Ipv4InterfaceContainer interfacesWiFi =
+    address.Assign(dispositivosWifi);
+
+  // Calculamos las rutas
+  Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+
+  // Creamos el modelo de movilidad
+  MobilityHelper ayudanteMovilidad;
+  Ptr < ListPositionAllocator > localizaciones =
+    CreateObject < ListPositionAllocator > ();
+
+  localizaciones->Add(Vector(0, 0, 0));
+  uint32_t dist = 2 + OFFSET;
+  localizaciones->Add(Vector(dist, 0, 0));
+  ayudanteMovilidad.SetPositionAllocator(localizaciones);
+  ayudanteMovilidad.SetMobilityModel
+    ("ns3::ConstantPositionMobilityModel");
+
+  ayudanteMovilidad.Install(nodos);
+
+  uint16_t port = 9;
+
+  PacketSinkHelper sink ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
+  ApplicationContainer serverApp = sink.Install (nodos.Get (0));
+
+  serverApp.Start(Seconds(1.0));
+  serverApp.Stop(Seconds(23.0)); //dejamos que acabe 1 segundo más tarde que e
+  OnOffHelper VoIP ("ns3::UdpSocketFactory", Address (InetSocketAddress (interfacesWiFi.GetAddress (0), port)));
+  // Creamos las variables aleatorias para los tiempos de on y off
+  Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
+  Ptr<ExponentialRandomVariable> toffExponencial = CreateObject<ExponentialRandomVariable> ();
+  // Especificamos las medias de estas variables
+  tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e6));
+  toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e6));
+  // Asociamos las variables aleatorias al cliente OnOff
+  VoIP.SetAttribute("OnTime", PointerValue(tonExponencial));
+  VoIP.SetAttribute("OffTime", PointerValue(toffExponencial));
+  VoIP.SetAttribute("PacketSize", UintegerValue(sizePkt));
+  VoIP.SetAttribute("DataRate", DataRateValue(dataRate));
+
+  NodeContainer clientes;
+
+  for (uint32_t i = 1; i < num_nodos; i++)
+    clientes.Add(nodos.Get(i));
+
+  ApplicationContainer clientApps = VoIP.Install (clientes);
+  clientApps.Start(Seconds(2.0));
+  clientApps.Stop(Seconds(20.0));
+
+  Observador observador;
+
+  for (uint32_t i = 0; i < clientApps.GetN(); i++)
+    clientApps.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&Observador::PktGenerado, &observador));
+
+  serverApp.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&Observador::PktRecibido, &observador));
+  
+  observador.SetTamPkt(sizePkt);
+
+  Simulator::Run();
+  Simulator::Destroy();
+
+  retardo = observador.GetMediaTiempos()/1e3;
+  porcentaje = observador.GetPorcentajePktsPerdidos();
+  tasa = observador.GetTasaMedia()/1e6;
 
 
-        // Suscribimos un objeto Observador a las trazas de cada nodo.
-        Observador observador[nCsma];
+  NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
+  NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
+  NS_LOG_INFO("Tasa media efectiva: " << tasa << "Mbps");
 
-        for (uint32_t j = 0; j < nCsma; j++)
-        {
-            observador[j].SetNodo((int)j);
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTxBackoff", MakeCallback(&Observador::EnvioRetrasado, &observador[j]));
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxDrop", MakeCallback(&Observador::EnvioDescartado, &observador[j]));
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("PhyTxEnd", MakeCallback(&Observador::EnvioTerminado, &observador[j]));
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("MacTx", MakeCallback(&Observador::OrdenEnvio, &observador[j]));
-            csmaDevices.Get(j)->TraceConnectWithoutContext ("MacRx", MakeCallback(&Observador::OrdenPktDisponible, &observador[j]));
-            
-            //Aprovechamos para cambiar el numero maximo de reintentos de tx 
-            csmaDevices.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, maxReintentos);
-        }              
-
-        // Cálculo de rutas
-        Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-
-        /////////// Instalación de las aplicaciones
-        // Servidor
-        UdpEchoServerHelper echoServer (9);
-        ApplicationContainer serverApp = echoServer.Install (csmaNodes.Get (nCsma - 1));
-        serverApp.Start (Seconds (1.0));
-        serverApp.Stop (Seconds (100.0));
-        // Clientes
-        UdpEchoClientHelper echoClient (csmaInterfaces.GetAddress (nCsma - 1), 9);
-        echoClient.SetAttribute ("MaxPackets", UintegerValue (10000));
-        echoClient.SetAttribute ("Interval", TimeValue (intervalo));
-        echoClient.SetAttribute ("PacketSize", UintegerValue (tamPaquete));
-
-        NodeContainer clientes;
-
-        for (uint32_t i = 0; i < nCsma - 1; i++)
-        {
-            clientes.Add (csmaNodes.Get (i));
-        }
-        ApplicationContainer clientApps = echoClient.Install (clientes);
-        clientApps.Start (Seconds (2.0));
-        clientApps.Stop (Seconds (100.0));
-
-
-        Simulator::Run ();
-        Simulator::Destroy ();
-
-        //Obtenemos los resultados de la simulacion iesima
-        resultados.medias = ResultadosSimulacion(observador, nCsma);
-
-        //Si los resultados son correctos, los acumulamos
-        if(resultados.medias.intentos != -1)
-            acIntentos.Update(resultados.medias.intentos);
-
-        if(resultados.medias.tiempo != -1)   
-            acTiempos.Update(resultados.medias.tiempo);
-    
-        if(resultados.medias.porcentaje != -1)
-            acPorcentajes.Update(resultados.medias.porcentaje);
-    }
-
-    //Igualamos los resultados a -1 para el control de errores.
-    resultados.medias.intentos = -1;
-    resultados.medias.tiempo = -1;
-    resultados.medias.porcentaje = -1;
-
-    if (acIntentos.Count() > 0)
-    {
-        resultados.medias.intentos = acIntentos.Mean();
-        resultados.varianzas.intentos = acIntentos.Var();
-    }
-
-    if (acTiempos.Count() > 0)
-    {
-        resultados.medias.tiempo = acTiempos.Mean();
-        resultados.varianzas.tiempo = acTiempos.Var();
-    }
-
-    if (acPorcentajes.Count() > 0)
-    {
-        resultados.medias.porcentaje = acPorcentajes.Mean();
-        resultados.varianzas.porcentaje = acPorcentajes.Var();
-    }
-
-    return resultados;
 }
