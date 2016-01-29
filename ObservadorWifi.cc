@@ -28,7 +28,7 @@ void ObservadorWifi::Tx(Ptr <const Packet> pkt)
 
 void ObservadorWifi::PhyTx(Ptr <const Packet> pkt)
 {
-  NS_LOG_INFO("Paquete transmitido a nivel fisico");
+  NS_LOG_INFO("Paquete transmitido a nivel fisico " << enviados);
   enviados++;
 
 }
@@ -42,28 +42,16 @@ void ObservadorWifi::Rx(Ptr <const Packet> pkt, const Address &)
 
 void ObservadorWifi::PhyRx(Ptr <const Packet> pkt)
 {
-  NS_LOG_INFO("Paquete recibido a nivel fisico");
+  NS_LOG_ERROR("Paquete recibido a nivel fisico"  << recibidos);
   recibidos++;
 }
 
 double ObservadorWifi::GetPorcentaje()
 {
-  if (enviados != 0 && this->GetRendimiento() != 0)
+  NS_LOG_ERROR("Recibidos " << recibidos << "Enviados " << enviados);
+  if (enviados != 0)
     {
       return (double) (1 - (double) recibidos / (double) enviados) * 100;
-    }
-  else
-    return 0;
-}
-
-double ObservadorWifi::GetRendimiento()
-{
-  Time tiempo_transcurrido = tiempo_ultimo_paquete_recibido -
-    tiempo_primer_paquete_enviado;
-  if (tiempo_transcurrido != 0)
-    {
-      return (double) bytes_recibidos /
-        (double) tiempo_transcurrido.GetSeconds();
     }
   else
     return 0;
