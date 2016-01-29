@@ -52,7 +52,7 @@ main (int argc, char *argv[])
 {
   GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
   Time::SetResolution (Time::US);
-  double perrorCSMA     = 1e-10;
+  //double perrorCSMA     = 1e-10;
   //double perrorALOHA    = 1e-4;
   double porcentaje     = 0.0;
   double retardo        = 0.0;
@@ -127,8 +127,8 @@ main (int argc, char *argv[])
       NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
       if (prot==CSMA){
         NS_LOG_DEBUG("Protocolo: CSMA");
-        //simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), retardo, porcentaje, tasa);
-        simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, retardo, porcentaje, tasa);
+        simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), retardo, porcentaje, tasa);
+        //simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, retardo, porcentaje, tasa);
         acu_porcentaje.Update(porcentaje);
         acu_retardo.Update(retardo);
         acu_tasa.Update(tasa);
@@ -244,10 +244,10 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt <<
   // Asignamos direcciones a cada una de las interfaces
   Ipv4AddressHelper address;
   Ipv4InterfaceContainer csmaInterfaces;
-  address.SetBase ("10.1.1.0", "255.255.255.0");
+  address.SetBase ("192.168.1.0", "255.255.255.0");
   csmaInterfaces = address.Assign (csmaDevices);
   Ipv4InterfaceContainer p2pInterfaces;
-  address.SetBase ("10.1.2.0", "255.255.255.0");
+  address.SetBase ("10.1.1.0", "255.255.255.0");
   p2pInterfaces = address.Assign (p2pDevices);
 
   // Calculamos las rutas del escenario.
@@ -323,8 +323,18 @@ void
 simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt, 
                 DataRate dataRate, double& retardo, double& porcentaje, double& tasa)
 {
+  
+  // Nodos que pertenecen a la red WAN
   NodeContainer nodos;
   nodos.Create(num_nodos);
+
+  // Nodos que pertenecen al enlace punto a punto
+  NodeContainer p2pNodes;
+  p2pNodes.Create (2);
+
+  // Como primer nodo añadimos el encaminador que proporciona acceso
+  // al enlace punto a punto.
+  nodos.Add (p2pNodes.Get (1));
 
   YansWifiChannelHelper canalWifi;
   canalWifi.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
@@ -352,15 +362,27 @@ simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt,
   // Y añadimos uno de estos dispositivos a cada uno de los nodos
   NetDeviceContainer dispositivosWifi = wifi.Install(medioWifi, MACwifi, nodos);
 
+  // Instalamos el dispositivo en los nodos punto a punto
+  PointToPointHelper pointToPoint;
+  NetDeviceContainer p2pDevices;
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("2Mbps"));//cap enlace
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms")); //retardo prop
+  p2pDevices = pointToPoint.Install (p2pNodes); 
+
   // Instalamos la pila TCP/IP en los nodos
   InternetStackHelper stack;
   stack.Install(nodos);
+  stack.Install (p2pNodes.Get (0));
+
 
   // Asignamos direcciones a los dispositivos
   Ipv4AddressHelper address;
   address.SetBase("192.168.1.0", "255.255.255.0");
   Ipv4InterfaceContainer interfacesWiFi =
     address.Assign(dispositivosWifi);
+  Ipv4InterfaceContainer p2pInterfaces;
+  address.SetBase ("10.1.1.0", "255.255.255.0");
+  p2pInterfaces = address.Assign (p2pDevices);
 
   // Calculamos las rutas
   Ipv4GlobalRoutingHelper::PopulateRoutingTables();
@@ -386,11 +408,13 @@ simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt,
   uint16_t port = 9;
 
   PacketSinkHelper sink ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
-  ApplicationContainer serverApp = sink.Install (nodos.Get (0));
+  ApplicationContainer serverApp = sink.Install (p2pNodes.Get (0));
 
   serverApp.Start(Seconds(1.0));
-  serverApp.Stop(Seconds(23.0)); //dejamos que acabe 1 segundo más tarde que e
-  OnOffHelper VoIP ("ns3::UdpSocketFactory", Address (InetSocketAddress (interfacesWiFi.GetAddress (0), port)));
+  serverApp.Stop(Seconds(23.0)); 
+
+
+  OnOffHelper VoIP ("ns3::UdpSocketFactory", Address (InetSocketAddress (p2pInterfaces.GetAddress (0), port)));
   // Creamos las variables aleatorias para los tiempos de on y off
   Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
   Ptr<ExponentialRandomVariable> toffExponencial = CreateObject<ExponentialRandomVariable> ();
