@@ -123,8 +123,8 @@ int main(int argc, char *argv[])
               Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
               Ptr<ExponentialRandomVariable> toffExponencial = CreateObject<ExponentialRandomVariable> ();
               // Especificamos las medias de estas variables
-              tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e9));
-              toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e9));
+              tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e6));
+              toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e6));
               // Asociamos las variables aleatorias al cliente OnOff
               VoIP.SetAttribute("OnTime", PointerValue(tonExponencial));
               VoIP.SetAttribute("OffTime", PointerValue(toffExponencial));
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
               serverApp.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorWifi::Rx, &observadorWifi));
               for(uint32_t i = 1; i < num_nodos; i++)
               dispositivosWifi.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->TraceConnectWithoutContext("PhyTxBegin", MakeCallback(&ObservadorWifi::PhyTx, &observadorWifi));
-              dispositivosWifi.Get(0)->GetObject<WifiNetDevice>()->GetPhy()->TraceConnectWithoutContext("PhyRxBegin", MakeCallback(&ObservadorWifi::PhyTx, &observadorWifi));
+              dispositivosWifi.Get(0)->GetObject<WifiNetDevice>()->GetPhy()->TraceConnectWithoutContext("PhyRxBegin", MakeCallback(&ObservadorWifi::PhyRx, &observadorWifi));
 
               // Lanzamos la simulación
               NS_LOG_INFO("Aquí3");
@@ -160,6 +160,7 @@ int main(int argc, char *argv[])
               NS_LOG_INFO("Simulación: " << n_sim << " | Nodos: " << num_nodos << " | " << observadorWifi.GetPorcentaje() << "%");
 
               acu_porcentaje.Update(observadorWifi.GetPorcentaje());
+
             }
 
           if(acu_porcentaje.Count() > 0)
