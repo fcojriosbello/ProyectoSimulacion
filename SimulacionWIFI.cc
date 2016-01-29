@@ -55,110 +55,7 @@ int main(int argc, char *argv[])
           acu_porcentaje.Reset();
           for (uint32_t n_sim = 0; n_sim < SIMULACIONES; n_sim++)
             {
-              NodeContainer nodos;
-              nodos.Create(num_nodos);
-
-              YansWifiChannelHelper canalWifi;
-              canalWifi.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-              canalWifi.AddPropagationLoss("ns3::LogDistancePropagationLossModel", "Exponent", DoubleValue(3.0));
-              Ptr<YansWifiChannel> canal = canalWifi.Create();
-
-              // Creamos el modelo de nivel PHY de las estaciones
-              YansWifiPhyHelper medioWifi;
-              // Establecemos el modelo de error
-              medioWifi.SetErrorRateModel("ns3::NistErrorRateModel");
-              // Le asociamos el canal
-              medioWifi.SetChannel(canal);
-
-              // Creamos el modelo de nivel MAC de las estaciones
-              NqosWifiMacHelper MACwifi;
-              // Seleccionamos modo AdHoc y sin soporte de QoS
-              MACwifi.SetType("ns3::AdhocWifiMac", "QosSupported", BooleanValue(false));
-
-              // Creamos el modelo para los dispositivos de red
-              WifiHelper wifi;
-              wifi.SetStandard(WIFI_PHY_STANDARD_80211a);
-
-              wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", StringValue("OfdmRate9Mbps"), "ControlMode", StringValue("OfdmRate9Mbps"));
-
-              // Y añadimos uno de estos dispositivos a cada uno de los nodos
-              NetDeviceContainer dispositivosWifi = wifi.Install(medioWifi, MACwifi, nodos);
-
-              // Instalamos la pila TCP/IP en los nodos
-              InternetStackHelper stack;
-              stack.Install(nodos);
-
-              // Asignamos direcciones a los dispositivos
-              Ipv4AddressHelper address;
-              address.SetBase("192.168.1.0", "255.255.255.0");
-              Ipv4InterfaceContainer interfacesWiFi =
-                address.Assign(dispositivosWifi);
-
-              // Calculamos las rutas
-              Ipv4GlobalRoutingHelper::PopulateRoutingTables();
-
-              // Creamos el modelo de movilidad
-              MobilityHelper ayudanteMovilidad;
-              Ptr < ListPositionAllocator > localizaciones =
-                CreateObject < ListPositionAllocator > ();
-
-              localizaciones->Add(Vector(0, 0, 0));
-              uint32_t dist = 2 + OFFSET;
-              localizaciones->Add(Vector(dist, 0, 0));
-              ayudanteMovilidad.SetPositionAllocator(localizaciones);
-              ayudanteMovilidad.SetMobilityModel
-                ("ns3::ConstantPositionMobilityModel");
-
-              ayudanteMovilidad.Install(nodos);
-
-              uint16_t port = 9;
-
-              PacketSinkHelper sink ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
-              ApplicationContainer serverApp = sink.Install (nodos.Get (0));
-
-              serverApp.Start(Seconds(1.0));
-              serverApp.Stop(Seconds(23.0)); //dejamos que acabe 1 segundo más tarde que e
-              OnOffHelper VoIP ("ns3::UdpSocketFactory", Address (InetSocketAddress (interfacesWiFi.GetAddress (0), port)));
-              // Creamos las variables aleatorias para los tiempos de on y off
-              Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
-              Ptr<ExponentialRandomVariable> toffExponencial = CreateObject<ExponentialRandomVariable> ();
-              // Especificamos las medias de estas variables
-              tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e6));
-              toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e6));
-              // Asociamos las variables aleatorias al cliente OnOff
-              VoIP.SetAttribute("OnTime", PointerValue(tonExponencial));
-              VoIP.SetAttribute("OffTime", PointerValue(toffExponencial));
-              VoIP.SetAttribute("PacketSize", UintegerValue(sizePkt));
-              VoIP.SetAttribute("DataRate", DataRateValue(dataRate));
-
-              NodeContainer clientes;
-
-              for (uint32_t i = 1; i < num_nodos; i++)
-              clientes.Add(nodos.Get(i));
-
-              ApplicationContainer clientApps = VoIP.Install (clientes);
-              clientApps.Start(Seconds(2.0));
-              clientApps.Stop(Seconds(20.0));
-
-              ObservadorWifi observadorWifi;
-
-              for (uint32_t i = 0; i < clientApps.GetN(); i++)
-              clientApps.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&ObservadorWifi::Tx, &observadorWifi));
-
-              serverApp.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorWifi::Rx, &observadorWifi));
-              for(uint32_t i = 1; i < num_nodos; i++)
-              dispositivosWifi.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->TraceConnectWithoutContext("PhyTxBegin", MakeCallback(&ObservadorWifi::PhyTx, &observadorWifi));
-              dispositivosWifi.Get(0)->GetObject<WifiNetDevice>()->GetPhy()->TraceConnectWithoutContext("PhyRxBegin", MakeCallback(&ObservadorWifi::PhyRx, &observadorWifi));
-
-              // Lanzamos la simulación
-              NS_LOG_INFO("Aquí3");
-
-              Simulator::Run();
-              // Eliminamos el simulador
-              Simulator::Destroy();
-
-              NS_LOG_INFO("Simulación: " << n_sim << " | Nodos: " << num_nodos << " | " << observadorWifi.GetPorcentaje() << "%");
-
+              
               acu_porcentaje.Update(observadorWifi.GetPorcentaje());
 
             }
@@ -173,5 +70,111 @@ int main(int argc, char *argv[])
   plotPorcentaje.GenerateOutput(file1);
   file1 << "pause -1" << std::endl;
   file1.close();
+
+}
+
+simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt, 
+                DataRate dataRate, double& retardo, double& porcentaje, double& tasa)
+{
+  NodeContainer nodos;
+  nodos.Create(num_nodos);
+
+  YansWifiChannelHelper canalWifi;
+  canalWifi.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
+  canalWifi.AddPropagationLoss("ns3::LogDistancePropagationLossModel", "Exponent", DoubleValue(3.0));
+  Ptr<YansWifiChannel> canal = canalWifi.Create();
+
+  // Creamos el modelo de nivel PHY de las estaciones
+  YansWifiPhyHelper medioWifi;
+  // Establecemos el modelo de error
+  medioWifi.SetErrorRateModel("ns3::NistErrorRateModel");
+  // Le asociamos el canal
+  medioWifi.SetChannel(canal);
+
+  // Creamos el modelo de nivel MAC de las estaciones
+  NqosWifiMacHelper MACwifi;
+  // Seleccionamos modo AdHoc y sin soporte de QoS
+  MACwifi.SetType("ns3::AdhocWifiMac", "QosSupported", BooleanValue(false));
+
+  // Creamos el modelo para los dispositivos de red
+  WifiHelper wifi;
+  wifi.SetStandard(WIFI_PHY_STANDARD_80211a);
+
+  wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", StringValue("OfdmRate9Mbps"), "ControlMode", StringValue("OfdmRate9Mbps"));
+
+  // Y añadimos uno de estos dispositivos a cada uno de los nodos
+  NetDeviceContainer dispositivosWifi = wifi.Install(medioWifi, MACwifi, nodos);
+
+  // Instalamos la pila TCP/IP en los nodos
+  InternetStackHelper stack;
+  stack.Install(nodos);
+
+  // Asignamos direcciones a los dispositivos
+  Ipv4AddressHelper address;
+  address.SetBase("192.168.1.0", "255.255.255.0");
+  Ipv4InterfaceContainer interfacesWiFi =
+	  address.Assign(dispositivosWifi);
+
+  // Calculamos las rutas
+  Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+
+  // Creamos el modelo de movilidad
+  MobilityHelper ayudanteMovilidad;
+  Ptr < ListPositionAllocator > localizaciones =
+	  CreateObject < ListPositionAllocator > ();
+
+  localizaciones->Add(Vector(0, 0, 0));
+  uint32_t dist = 2 + OFFSET;
+  localizaciones->Add(Vector(dist, 0, 0));
+  ayudanteMovilidad.SetPositionAllocator(localizaciones);
+  ayudanteMovilidad.SetMobilityModel
+	  ("ns3::ConstantPositionMobilityModel");
+
+  ayudanteMovilidad.Install(nodos);
+
+  uint16_t port = 9;
+
+  PacketSinkHelper sink ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
+  ApplicationContainer serverApp = sink.Install (nodos.Get (0));
+
+  serverApp.Start(Seconds(1.0));
+  serverApp.Stop(Seconds(23.0)); //dejamos que acabe 1 segundo más tarde que e
+  OnOffHelper VoIP ("ns3::UdpSocketFactory", Address (InetSocketAddress (interfacesWiFi.GetAddress (0), port)));
+  // Creamos las variables aleatorias para los tiempos de on y off
+  Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
+  Ptr<ExponentialRandomVariable> toffExponencial = CreateObject<ExponentialRandomVariable> ();
+  // Especificamos las medias de estas variables
+  tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e6));
+  toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e6));
+  // Asociamos las variables aleatorias al cliente OnOff
+  VoIP.SetAttribute("OnTime", PointerValue(tonExponencial));
+  VoIP.SetAttribute("OffTime", PointerValue(toffExponencial));
+  VoIP.SetAttribute("PacketSize", UintegerValue(sizePkt));
+  VoIP.SetAttribute("DataRate", DataRateValue(dataRate));
+
+  NodeContainer clientes;
+
+  for (uint32_t i = 1; i < num_nodos; i++)
+	  clientes.Add(nodos.Get(i));
+
+  ApplicationContainer clientApps = VoIP.Install (clientes);
+  clientApps.Start(Seconds(2.0));
+  clientApps.Stop(Seconds(20.0));
+
+  ObservadorWifi observadorWifi;
+
+  for (uint32_t i = 0; i < clientApps.GetN(); i++)
+	  clientApps.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&ObservadorWifi::Tx, &observadorWifi));
+
+  serverApp.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&ObservadorWifi::Rx, &observadorWifi));
+  for(uint32_t i = 1; i < num_nodos; i++)
+	  dispositivosWifi.Get(i)->GetObject<WifiNetDevice>()->GetPhy()->TraceConnectWithoutContext("PhyTxBegin", MakeCallback(&ObservadorWifi::PhyTx, &observadorWifi));
+  dispositivosWifi.Get(0)->GetObject<WifiNetDevice>()->GetPhy()->TraceConnectWithoutContext("PhyRxBegin", MakeCallback(&ObservadorWifi::PhyRx, &observadorWifi));
+
+  Simulator::Run();
+  // Eliminamos el simulador
+  Simulator::Destroy();
+
+  NS_LOG_INFO("Simulación: " << n_sim << " | Nodos: " << num_nodos << " | " << observadorWifi.GetPorcentaje() << "%");
 
 }
