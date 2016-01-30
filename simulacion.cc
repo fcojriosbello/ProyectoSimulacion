@@ -37,7 +37,7 @@ simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate 
     double prob_error_pkt1, double prob_error_pkt2, double prob_error_pkt3, std::string p2p_dataRate, 
     std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate,
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt,
       std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 
 using namespace ns3;
@@ -133,7 +133,7 @@ main (int argc, char *argv[])
       NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
       if (prot==CSMA){
         NS_LOG_DEBUG("Protocolo: CSMA");
-        simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), "2Mbps", 
+        simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), "1e-6", "2Mbps", 
               "2ms", retardo, porcentaje, tasa);
         //simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
               //perrorCSMA, 1e-6, "2Mbps", "2ms", retardo, porcentaje, tasa);
@@ -400,9 +400,11 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 <
 }
 
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate,
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt,
       std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa)
 {
+  NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << prob_error_pkt << p2p_dataRate
+          << p2p_delay << retardo << porcentaje << tasa);
   
   // Nodos que pertenecen a la red WAN de la sede 1.
   // Como primer nodo añadimos el encaminador de la operadora.
@@ -463,6 +465,11 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
   // Añadimos el netDevice Wifi a cada nodo de la sede 2
   NetDeviceContainer wifiDevices2 = wifi.Install(wifiPhy2, wifiMac, wifiNodes2);
 
+  // Creamos el modelo de error para el enlace p2p
+  Ptr<RateErrorModel> modelo_error = CreateObject<RateErrorModel> ();
+  modelo_error->SetRate(prob_error_pkt);
+  modelo_error->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
+
   // Instalamos el dispositivo en los nodos punto a punto
   PointToPointHelper pointToPoint;
   NetDeviceContainer p2pDevices;
@@ -470,6 +477,10 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
   pointToPoint.SetChannelAttribute ("Delay", StringValue (p2p_delay)); //retardo prop
   pointToPoint.SetQueue ("ns3::DropTailQueue");
   p2pDevices = pointToPoint.Install (p2pNodes);  
+
+  //Configuramos el error del enlace p2p 
+  p2pDevices.Get (0)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error));
+  p2pDevices.Get (1)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error));
 
   // Instalamos la pila TCP/IP en los nodos
   InternetStackHelper stack;
