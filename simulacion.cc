@@ -23,6 +23,9 @@
 #define ALOHA 1
 #define TOKEN_RING 2 //Se modificará el valor cuando tengamos más protocolos
 
+#define NODOS_SEDE2 30  //Número de nodos en la sede 2. Será fijo ya que sólo
+                        //nos interesa medir en un sentido (problema simétrico).
+
 #define MAXWIFI 18
 #define NWIFI 100
 #define PUNTOSDIST 25
@@ -30,7 +33,9 @@
 
 //Simulación simple para el servicio VoIP usando CSMA
 void
-simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt, double& retardo, double& porcentaje, double& tasa);
+simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 
+    double prob_error_pkt1, double prob_error_pkt2, double prob_error_pkt3, std::string p2p_dataRate, 
+    std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 void
 simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt, 
                 DataRate dataRate, double& retardo, double& porcentaje, double& tasa);
@@ -52,7 +57,7 @@ main (int argc, char *argv[])
 {
   GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
   Time::SetResolution (Time::US);
-  //double perrorCSMA     = 1e-10;
+  double perrorCSMA     = 1e-10;
   //double perrorALOHA    = 1e-4;
   double porcentaje     = 0.0;
   double retardo        = 0.0;
@@ -94,6 +99,7 @@ main (int argc, char *argv[])
     datosPorcentajeCSMA.SetTitle(titleProt);
     
     Gnuplot2dDataset datosRetardoCSMA;
+    datosRetardoCSMA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
     datosRetardoCSMA.SetErrorBars(Gnuplot2dDataset::Y);
     datosRetardoCSMA.SetTitle(titleProt);
     
@@ -127,8 +133,9 @@ main (int argc, char *argv[])
       NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
       if (prot==CSMA){
         NS_LOG_DEBUG("Protocolo: CSMA");
-        simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), retardo, porcentaje, tasa);
-        //simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, retardo, porcentaje, tasa);
+        //simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), retardo, porcentaje, tasa);
+        simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
+              perrorCSMA, 1e-6, "2Mbps", "2ms", retardo, porcentaje, tasa);
         acu_porcentaje.Update(porcentaje);
         acu_retardo.Update(retardo);
         acu_tasa.Update(tasa);
@@ -192,78 +199,119 @@ simulacionCSMA (uint32_t nCsma,
                 Time toff,
                 uint32_t sizePkt,
                 DataRate dataRate,
-                double prob_error_pkt,
+                double prob_error_pkt1,
+                double prob_error_pkt2,
+                double prob_error_pkt3,
+                std::string p2p_dataRate,
+                std::string p2p_delay,
                 double& retardo,
                 double& porcentaje,
                 double& tasa)
 {
-NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt << retardo << porcentaje << tasa);
+NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 << prob_error_pkt2 
+  << prob_error_pkt3 << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
 
-  // Creamos el modelo de error y le asociamos los parametros
-  Ptr<RateErrorModel> modelo_error = CreateObject<RateErrorModel> ();
+  // Creamos los modelos de errores y le asociamos los parámetros
+  Ptr<RateErrorModel> modelo_error1 = CreateObject<RateErrorModel> ();
+  Ptr<RateErrorModel> modelo_error2 = CreateObject<RateErrorModel> ();
+  Ptr<RateErrorModel> modelo_error3 = CreateObject<RateErrorModel> ();
 
-  modelo_error->SetRate(prob_error_pkt);
-  modelo_error->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
+  modelo_error1->SetRate(prob_error_pkt1);
+  modelo_error1->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
-  // Nodos que pertenecen a la red de área local
-  // Como primer nodo añadimos el sumidero.
-  NodeContainer csmaNodes;
-  csmaNodes.Create (nCsma);
+  modelo_error2->SetRate(prob_error_pkt2);
+  modelo_error2->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
-  // Nodos que pertenecen al enlace punto a punto
+  modelo_error3->SetRate(prob_error_pkt3);
+  modelo_error3->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
+
+  // Nodos que pertenecen a la red de área local de la sede 1
+  // Como primer nodo añadimos el encaminador de la operadora.
+  // Como último nodo añadimos el sumidero.
+  NodeContainer csmaNodes1;
+  csmaNodes1.Create (nCsma + 2);
+
+  // Nodos que pertenecen a la red de área local de la sede 2
+  // Como primer nodo añadimos el encaminador de la operadora.
+  // Como último nodo añadimos el sumidero.
+  // Tendrá un número de nodos fijos ya que sólo 
+  // nos interesa medir en un sentido (problema simétrico).
+  NodeContainer csmaNodes2;
+  csmaNodes2.Create (NODOS_SEDE2 + 2);
+
+  // Nodos que pertenecen al enlace punto a punto.
+  // Nodo cero de cada red csma.
   NodeContainer p2pNodes;
-  p2pNodes.Create (2);
+  p2pNodes.Add (csmaNodes1.Get(0));
+  p2pNodes.Add (csmaNodes2.Get(0));
 
-  // Como primer nodo añadimos el encaminador que proporciona acceso
-  // al enlace punto a punto.
-  csmaNodes.Add (p2pNodes.Get (1));
+  // Instalamos el dispositivo de red en los nodos de la LAN
+  CsmaHelper csma;
+  NetDeviceContainer csmaDevices1;
+  NetDeviceContainer csmaDevices2;
+  csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps"));
+  csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (6560)));
+  csmaDevices1 = csma.Install (csmaNodes1);
+  csmaDevices2 = csma.Install (csmaNodes2);
 
   // Instalamos el dispositivo en los nodos punto a punto
   PointToPointHelper pointToPoint;
   NetDeviceContainer p2pDevices;
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("2Mbps"));//cap enlace
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms")); //retardo prop
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue(p2p_dataRate));//cap enlace
+  pointToPoint.SetChannelAttribute ("Delay", StringValue (p2p_delay)); //retardo prop
+  pointToPoint.SetQueue ("ns3::DropTailQueue");
   p2pDevices = pointToPoint.Install (p2pNodes); 
 
-  // Instalamos el dispositivo de red en los nodos de la LAN
-  CsmaHelper csma;
-  NetDeviceContainer csmaDevices;
-  csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps"));
-  csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (6560)));
-  csmaDevices = csma.Install (csmaNodes);
+  //Configuramos el error del canal en las interfaces de la sede 1
+  for (uint32_t k = 0; k < nCsma+2; k++ )
+  csmaDevices1.Get (k)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error1));
 
-  //Configuramos el error del canal en las interfaces
-  for (uint32_t k = 0; k < nCsma; k++ )
-  csmaDevices.Get (k)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error));
+  //Configuramos el error del canal en las interfaces de la sede 2
+  for (uint32_t k = 0; k < NODOS_SEDE2+2; k++ )
+  csmaDevices2.Get (k)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error3));
+
+  //Configuramos el error del enlace p2p 
+  p2pDevices.Get (0)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error2));
+  p2pDevices.Get (1)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error2));
 
   // Instalamos la pila TCP/IP en todos los nodos
+  // Los nodos p2p también estan incluidos en los 
+  // contenedores de nodos de las sedes.
   InternetStackHelper stack;
-  stack.Install (csmaNodes);
-  stack.Install (p2pNodes.Get (0));
+  stack.Install (csmaNodes1);
+  stack.Install (csmaNodes2);
 
   // Asignamos direcciones a cada una de las interfaces
   Ipv4AddressHelper address;
-  Ipv4InterfaceContainer csmaInterfaces;
+  //Subred 192.168.1.0 para la sede 1
+  Ipv4InterfaceContainer csmaInterfaces1;
   address.SetBase ("192.168.1.0", "255.255.255.0");
-  csmaInterfaces = address.Assign (csmaDevices);
+  csmaInterfaces1 = address.Assign (csmaDevices1);
+  //Subred 192.168.2.0 para la sede 2
+  Ipv4InterfaceContainer csmaInterfaces2;
+  address.SetBase ("192.168.2.0", "255.255.255.0");
+  csmaInterfaces2 = address.Assign (csmaDevices2); 
+  //Subred 10.0.1.0 para el enlace p2p
   Ipv4InterfaceContainer p2pInterfaces;
-  address.SetBase ("10.1.1.0", "255.255.255.0");
+  address.SetBase ("10.0.1.0", "255.255.255.0");
   p2pInterfaces = address.Assign (p2pDevices);
 
   // Calculamos las rutas del escenario.
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
 
-  // Establecemos un sumidero para los paquetes en el puerto 9 del nodo
-  //     aislado del enlace punto a punto
+  // Establecemos un sumidero para los paquetes en el puerto 9.
+  // Los sumideros estarán ubicados en los últimos nodos de las 
+  // subredes csma (en ambas sedes).
   uint16_t port = 9;
   PacketSinkHelper sink ("ns3::UdpSocketFactory",
                          Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
-  ApplicationContainer app = sink.Install (p2pNodes.Get (0));
+  ApplicationContainer appSink1 = sink.Install (csmaNodes1.Get (nCsma + 1));
+  ApplicationContainer appSink2 = sink.Install (csmaNodes2.Get (NODOS_SEDE2 + 1)); 
 
-  // Instalamos un cliente OnOff en uno de los equipos de la red de área local
-  OnOffHelper VoIP ("ns3::UdpSocketFactory",
-                        Address (InetSocketAddress (p2pInterfaces.GetAddress (0), port)));
+  // Instalamos un cliente OnOff en los equipos de la sede 1.
+  OnOffHelper VoIP1 ("ns3::UdpSocketFactory",
+          Address (InetSocketAddress (csmaInterfaces2.GetAddress (NODOS_SEDE2 + 1), port)));
 
   // Creamos las variables aleatorias para los tiempos de on y off
   Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
@@ -272,36 +320,67 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt <<
   tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e9));
   toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e9));
   // Asociamos las variables aleatorias al cliente OnOff
-  VoIP.SetAttribute("OnTime", PointerValue(tonExponencial));
-  VoIP.SetAttribute("OffTime", PointerValue(toffExponencial));
-  VoIP.SetAttribute("PacketSize", UintegerValue(sizePkt));
-  VoIP.SetAttribute("DataRate", DataRateValue(dataRate));
+  VoIP1.SetAttribute("OnTime", PointerValue(tonExponencial));
+  VoIP1.SetAttribute("OffTime", PointerValue(toffExponencial));
+  VoIP1.SetAttribute("PacketSize", UintegerValue(sizePkt));
+  VoIP1.SetAttribute("DataRate", DataRateValue(dataRate));
 
-  NodeContainer clientes;
+  NodeContainer clientes1;
 
-  for (uint32_t i = 1; i < nCsma; i++)
-    clientes.Add(csmaNodes.Get(i));
+  for (uint32_t i = 1; i <= nCsma; i++)
+    clientes1.Add(csmaNodes1.Get(i));
 
-  //Instalamos la aplicación On/Off en todos y cada uno de los nodos de la red de área local.
-  ApplicationContainer clientApps = VoIP.Install (clientes);
-  clientApps.Start (Seconds (2.0));
-  clientApps.Stop (Seconds (20.0));
+  //Instalamos la aplicación On/Off en todos y cada uno de 
+  //los nodos de la red de área local de la sede 1.
+  ApplicationContainer clientApps1 = VoIP1.Install (clientes1);
+  clientApps1.Start (Seconds (2.0));
+  clientApps1.Stop (Seconds (20.0));
+
+  // Instalamos un cliente OnOff en los equipos de la sede 2.
+  OnOffHelper VoIP2 ("ns3::UdpSocketFactory",
+          Address (InetSocketAddress (csmaInterfaces1.GetAddress (nCsma + 1), port)));
+
+  // Asociamos las variables aleatorias al cliente OnOff
+  VoIP2.SetAttribute("OnTime", PointerValue(tonExponencial));
+  VoIP2.SetAttribute("OffTime", PointerValue(toffExponencial));
+  VoIP2.SetAttribute("PacketSize", UintegerValue(sizePkt));
+  VoIP2.SetAttribute("DataRate", DataRateValue(dataRate));
+
+  NodeContainer clientes2;
+
+  for (uint32_t i = 1; i <= NODOS_SEDE2; i++)
+    clientes2.Add(csmaNodes2.Get(i));
+
+  //Instalamos la aplicación On/Off en todos y cada uno de 
+  //los nodos de la red de área local de la sede 2.
+  ApplicationContainer clientApps2 = VoIP2.Install (clientes2);
+  clientApps2.Start (Seconds (2.0));
+  clientApps2.Stop (Seconds (20.0));
 
   //Objeto observador para obtener los resultados de las simulaciones.
   Observador observador;
 
-  for (uint32_t i = 0; i < clientApps.GetN(); i++)
-    //Conectamos las trazas al observador para todos los clientes.
-    clientApps.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&Observador::PktGenerado, &observador));
+  for (uint32_t i = 0; i < clientApps1.GetN(); i++)
+    //Conectamos las trazas al observador para todos los clientes de la sede 1.
+    clientApps1.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", 
+                                  MakeCallback(&Observador::PktGenerado, &observador));
 
   //Conectamos la traza del sumidero al observador.
-  app.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&Observador::PktRecibido, &observador));
+  appSink2.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", 
+                  MakeCallback(&Observador::PktRecibido, &observador));
 
-  for (uint32_t j = 1; j < nCsma; j++)
+  for (uint32_t j = 1; j <= nCsma; j++)
   {
-    //Aprovechamos para cambiar el numero maximo de reintentos de tx
-    csmaDevices.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 8);
+    //Aprovechamos para cambiar el numero maximo de reintentos de tx.
+    csmaDevices1.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 8);
   }
+
+    for (uint32_t j = 1; j <= NODOS_SEDE2; j++)
+  {
+    //Aprovechamos para cambiar el numero maximo de reintentos de tx.
+    csmaDevices2.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 8);
+  }
+
   observador.SetTamPkt(sizePkt);
 
   // Lanzamos la simulación
