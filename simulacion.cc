@@ -37,8 +37,8 @@ simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate 
     double prob_error_pkt1, double prob_error_pkt2, double prob_error_pkt3, std::string p2p_dataRate, 
     std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 void
-simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt, 
-                DataRate dataRate, double& retardo, double& porcentaje, double& tasa);
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate,
+      std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 
 using namespace ns3;
 
@@ -57,7 +57,7 @@ main (int argc, char *argv[])
 {
   GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
   Time::SetResolution (Time::US);
-  double perrorCSMA     = 1e-10;
+  //double perrorCSMA     = 1e-10;
   //double perrorALOHA    = 1e-4;
   double porcentaje     = 0.0;
   double retardo        = 0.0;
@@ -133,9 +133,10 @@ main (int argc, char *argv[])
       NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
       if (prot==CSMA){
         NS_LOG_DEBUG("Protocolo: CSMA");
-        //simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), retardo, porcentaje, tasa);
-        simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
-              perrorCSMA, 1e-6, "2Mbps", "2ms", retardo, porcentaje, tasa);
+        simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), "2Mbps", 
+              "2ms", retardo, porcentaje, tasa);
+        //simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
+              //perrorCSMA, 1e-6, "2Mbps", "2ms", retardo, porcentaje, tasa);
         acu_porcentaje.Update(porcentaje);
         acu_retardo.Update(retardo);
         acu_tasa.Update(tasa);
@@ -399,129 +400,210 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 <
 }
 
 void
-simulacionWifi (uint32_t num_nodos, Time ton, Time toff, uint32_t sizePkt, 
-                DataRate dataRate, double& retardo, double& porcentaje, double& tasa)
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate,
+      std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa)
 {
   
-  // Nodos que pertenecen a la red WAN
-  NodeContainer nodos;
-  nodos.Create(num_nodos);
+  // Nodos que pertenecen a la red WAN de la sede 1.
+  // Como primer nodo añadimos el encaminador de la operadora.
+  // Como último nodo añadimos el sumidero.
+  NodeContainer wifiNodes1;
+  wifiNodes1.Create(nWifi+2);
 
-  // Nodos que pertenecen al enlace punto a punto
+  // Nodos que pertenecen a la red WAN de la sede 2.
+  // Como primer nodo añadimos el encaminador de la operadora.
+  // Como último nodo añadimos el sumidero.
+  // Tendrá un número de nodos fijos ya que sólo 
+  // nos interesa medir en un sentido (problema simétrico).
+  NodeContainer wifiNodes2;
+  wifiNodes2.Create(NODOS_SEDE2+2);
+
+
+  // Nodos que pertenecen al enlace punto a punto.
+  // Nodo cero de cada red csma.
   NodeContainer p2pNodes;
-  p2pNodes.Create (2);
+  p2pNodes.Add (wifiNodes1.Get(0));
+  p2pNodes.Add (wifiNodes2.Get(0));
 
-  // Como primer nodo añadimos el encaminador que proporciona acceso
-  // al enlace punto a punto.
-  nodos.Add (p2pNodes.Get (1));
+  YansWifiChannelHelper wifiChannel;
+  wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
+  wifiChannel.AddPropagationLoss("ns3::LogDistancePropagationLossModel", "Exponent", DoubleValue(3.0));
+  Ptr<YansWifiChannel> canalWifi1 = wifiChannel.Create();
+  Ptr<YansWifiChannel> canalWifi2 = wifiChannel.Create();
 
-  YansWifiChannelHelper canalWifi;
-  canalWifi.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-  canalWifi.AddPropagationLoss("ns3::LogDistancePropagationLossModel", "Exponent", DoubleValue(3.0));
-  Ptr<YansWifiChannel> canal = canalWifi.Create();
+  // Creamos el modelo de nivel físico de los nodos de la sede 1
+  YansWifiPhyHelper wifiPhy1;
+  // Establecemos el modelo de error para el canal wifi de la sede 1
+  wifiPhy1.SetErrorRateModel("ns3::NistErrorRateModel");
+  // Le asociamos el wifi para la sede 1
+  wifiPhy1.SetChannel(canalWifi1);
 
-  // Creamos el modelo de nivel PHY de las estaciones
-  YansWifiPhyHelper medioWifi;
-  // Establecemos el modelo de error
-  medioWifi.SetErrorRateModel("ns3::NistErrorRateModel");
-  // Le asociamos el canal
-  medioWifi.SetChannel(canal);
+  // Creamos el modelo de nivel físico de los nodos de la sede 2
+  YansWifiPhyHelper wifiPhy2;
+  // Establecemos el modelo de error para el canal wifi de la sede 2
+  wifiPhy2.SetErrorRateModel("ns3::NistErrorRateModel");
+  // Le asociamos el wifi para la sede 1
+  wifiPhy2.SetChannel(canalWifi2);
 
-  // Creamos el modelo de nivel MAC de las estaciones
-  NqosWifiMacHelper MACwifi;
+  // Creamos el modelo de nivel de enlace de los nodos de la sede 1
+  NqosWifiMacHelper wifiMac;
   // Seleccionamos modo AdHoc y sin soporte de QoS
-  MACwifi.SetType("ns3::AdhocWifiMac", "QosSupported", BooleanValue(false));
+  wifiMac.SetType("ns3::AdhocWifiMac", "QosSupported", BooleanValue(false));
 
-  // Creamos el modelo para los dispositivos de red
+  // Definimos el estandar a usar en ambas sedes.
   WifiHelper wifi;
   wifi.SetStandard(WIFI_PHY_STANDARD_80211a);
 
-  wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", StringValue("OfdmRate9Mbps"), "ControlMode", StringValue("OfdmRate9Mbps"));
+  wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", 
+      StringValue("OfdmRate9Mbps"), "ControlMode", StringValue("OfdmRate9Mbps"));
 
-  // Y añadimos uno de estos dispositivos a cada uno de los nodos
-  NetDeviceContainer dispositivosWifi = wifi.Install(medioWifi, MACwifi, nodos);
+  // Añadimos el netDevice Wifi a cada nodo de la sede 1
+  NetDeviceContainer wifiDevices1 = wifi.Install(wifiPhy1, wifiMac, wifiNodes1);
+
+  // Añadimos el netDevice Wifi a cada nodo de la sede 2
+  NetDeviceContainer wifiDevices2 = wifi.Install(wifiPhy2, wifiMac, wifiNodes2);
 
   // Instalamos el dispositivo en los nodos punto a punto
   PointToPointHelper pointToPoint;
   NetDeviceContainer p2pDevices;
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue("2Mbps"));//cap enlace
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms")); //retardo prop
-  p2pDevices = pointToPoint.Install (p2pNodes); 
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue(p2p_dataRate));//cap enlace
+  pointToPoint.SetChannelAttribute ("Delay", StringValue (p2p_delay)); //retardo prop
+  pointToPoint.SetQueue ("ns3::DropTailQueue");
+  p2pDevices = pointToPoint.Install (p2pNodes);  
 
   // Instalamos la pila TCP/IP en los nodos
   InternetStackHelper stack;
-  stack.Install(nodos);
-  stack.Install (p2pNodes.Get (0));
+  stack.Install (wifiNodes1);
+  stack.Install (wifiNodes2);
 
 
-  // Asignamos direcciones a los dispositivos
+  // Asignamos direcciones a cada una de las interfaces
   Ipv4AddressHelper address;
-  address.SetBase("192.168.1.0", "255.255.255.0");
-  Ipv4InterfaceContainer interfacesWiFi =
-    address.Assign(dispositivosWifi);
+  //Subred 192.168.1.0 para la sede 1
+  Ipv4InterfaceContainer interfacesWifi1;
+  address.SetBase ("192.168.1.0", "255.255.255.0");
+  interfacesWifi1 = address.Assign (wifiDevices1);
+  //Subred 192.168.2.0 para la sede 2
+  Ipv4InterfaceContainer interfacesWifi2;
+  address.SetBase ("192.168.2.0", "255.255.255.0");
+  interfacesWifi2 = address.Assign (wifiDevices2); 
+  //Subred 10.0.1.0 para el enlace p2p
   Ipv4InterfaceContainer p2pInterfaces;
-  address.SetBase ("10.1.1.0", "255.255.255.0");
+  address.SetBase ("10.0.1.0", "255.255.255.0");
   p2pInterfaces = address.Assign (p2pDevices);
 
   // Calculamos las rutas
   Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
-  // Creamos el modelo de movilidad
-  MobilityHelper ayudanteMovilidad;
-  Ptr < ListPositionAllocator > localizaciones =
-    CreateObject < ListPositionAllocator > ();
+  // Creamos el modelo de movilidad para la sede 1
+  MobilityHelper ayudanteMovilidad1;
+  Ptr < ListPositionAllocator > localizaciones1 = CreateObject < ListPositionAllocator > ();
 
-    //Añadimos las posibles localizaciones para los nodos.
-  for(uint32_t i = 0; i <= sqrt(num_nodos); i++)
+    //Añadimos las posibles localizaciones para los nodos de la sede 1.
+  for(uint32_t i = 0; i <= sqrt(nWifi); i++)
     {
-      for (uint32_t j = 0; j <= sqrt(num_nodos); j++)
-        localizaciones->Add(Vector(i, j, 0));
+      for (uint32_t j = 0; j <= sqrt(nWifi); j++)
+        localizaciones1->Add(Vector(i, j, 0));
     }
   
-  ayudanteMovilidad.SetPositionAllocator(localizaciones);
-  ayudanteMovilidad.SetMobilityModel
+  ayudanteMovilidad1.SetPositionAllocator(localizaciones1);
+  ayudanteMovilidad1.SetMobilityModel
     ("ns3::ConstantPositionMobilityModel");
 
-  ayudanteMovilidad.Install(nodos);
+  ayudanteMovilidad1.Install(wifiNodes1);
+
+
+  // Creamos el modelo de movilidad para la sede 2
+  MobilityHelper ayudanteMovilidad2;
+  Ptr < ListPositionAllocator > localizaciones2 = CreateObject < ListPositionAllocator > ();
+
+  //Añadimos las posibles localizaciones para los nodos de la sede 2.
+  for(uint32_t i = 0; i <= sqrt(nWifi); i++)
+    {
+      for (uint32_t j = 0; j <= sqrt(nWifi); j++)
+        localizaciones2->Add(Vector(i, j, 0));
+    }
+  
+  ayudanteMovilidad2.SetPositionAllocator(localizaciones2);
+  ayudanteMovilidad2.SetMobilityModel
+    ("ns3::ConstantPositionMobilityModel");
+
+  ayudanteMovilidad2.Install(wifiNodes2);
+
+
 
   uint16_t port = 9;
 
   PacketSinkHelper sink ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
-  ApplicationContainer serverApp = sink.Install (p2pNodes.Get (0));
+  ApplicationContainer appSink1 = sink.Install (wifiNodes1.Get (nWifi + 1));
+  ApplicationContainer appSink2 = sink.Install (wifiNodes2.Get (NODOS_SEDE2 + 1)); 
 
-  serverApp.Start(Seconds(1.0));
-  serverApp.Stop(Seconds(23.0)); 
+  appSink1.Start(Seconds(1.0));
+  appSink1.Stop(Seconds(23.0)); 
+
+  appSink2.Start(Seconds(1.0));
+  appSink2.Stop(Seconds(23.0)); 
 
 
-  OnOffHelper VoIP ("ns3::UdpSocketFactory", Address (InetSocketAddress (p2pInterfaces.GetAddress (0), port)));
+  // Instalamos un cliente OnOff en los equipos de la sede 1.
+  OnOffHelper VoIP1 ("ns3::UdpSocketFactory",
+          Address (InetSocketAddress (interfacesWifi2.GetAddress (NODOS_SEDE2 + 1), port)));
+
   // Creamos las variables aleatorias para los tiempos de on y off
   Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
   Ptr<ExponentialRandomVariable> toffExponencial = CreateObject<ExponentialRandomVariable> ();
   // Especificamos las medias de estas variables
-  tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e6));
-  toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e6));
+  tonExponencial->SetAttribute("Mean", DoubleValue(ton.GetDouble()/1e9));
+  toffExponencial->SetAttribute("Mean", DoubleValue(toff.GetDouble()/1e9));
   // Asociamos las variables aleatorias al cliente OnOff
-  VoIP.SetAttribute("OnTime", PointerValue(tonExponencial));
-  VoIP.SetAttribute("OffTime", PointerValue(toffExponencial));
-  VoIP.SetAttribute("PacketSize", UintegerValue(sizePkt));
-  VoIP.SetAttribute("DataRate", DataRateValue(dataRate));
+  VoIP1.SetAttribute("OnTime", PointerValue(tonExponencial));
+  VoIP1.SetAttribute("OffTime", PointerValue(toffExponencial));
+  VoIP1.SetAttribute("PacketSize", UintegerValue(sizePkt));
+  VoIP1.SetAttribute("DataRate", DataRateValue(dataRate));
 
-  NodeContainer clientes;
+  NodeContainer clientes1;
 
-  for (uint32_t i = 1; i < num_nodos; i++)
-    clientes.Add(nodos.Get(i));
+  for (uint32_t i = 1; i <= nWifi; i++)
+    clientes1.Add(wifiNodes1.Get(i));
 
-  ApplicationContainer clientApps = VoIP.Install (clientes);
-  clientApps.Start(Seconds(2.0));
-  clientApps.Stop(Seconds(20.0));
+  //Instalamos la aplicación On/Off en todos y cada uno de 
+  //los nodos de la red de área local de la sede 1.
+  ApplicationContainer clientApps1 = VoIP1.Install (clientes1);
+  clientApps1.Start (Seconds (2.0));
+  clientApps1.Stop (Seconds (20.0));
+
+  // Instalamos un cliente OnOff en los equipos de la sede 2.
+  OnOffHelper VoIP2 ("ns3::UdpSocketFactory",
+          Address (InetSocketAddress (interfacesWifi1.GetAddress (nWifi + 1), port)));
+
+  // Asociamos las variables aleatorias al cliente OnOff
+  VoIP2.SetAttribute("OnTime", PointerValue(tonExponencial));
+  VoIP2.SetAttribute("OffTime", PointerValue(toffExponencial));
+  VoIP2.SetAttribute("PacketSize", UintegerValue(sizePkt));
+  VoIP2.SetAttribute("DataRate", DataRateValue(dataRate));
+
+  NodeContainer clientes2;
+
+  for (uint32_t i = 1; i <= NODOS_SEDE2; i++)
+    clientes2.Add(wifiNodes2.Get(i));
+
+  //Instalamos la aplicación On/Off en todos y cada uno de 
+  //los nodos de la red de área local de la sede 2.
+  ApplicationContainer clientApps2 = VoIP2.Install (clientes2);
+  clientApps2.Start (Seconds (2.0));
+  clientApps2.Stop (Seconds (20.0));
 
   Observador observador;
 
-  for (uint32_t i = 0; i < clientApps.GetN(); i++)
-    clientApps.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", MakeCallback(&Observador::PktGenerado, &observador));
+  for (uint32_t i = 0; i < clientApps1.GetN(); i++)
+    //Conectamos las trazas al observador para todos los clientes de la sede 1.
+    clientApps1.Get(i)->GetObject<OnOffApplication>()->TraceConnectWithoutContext ("Tx", 
+                                  MakeCallback(&Observador::PktGenerado, &observador));
 
-  serverApp.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", MakeCallback(&Observador::PktRecibido, &observador));
-  
+  //Conectamos la traza del sumidero al observador.
+  appSink2.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", 
+                  MakeCallback(&Observador::PktRecibido, &observador));
+
   observador.SetTamPkt(sizePkt);
 
   Simulator::Run();
