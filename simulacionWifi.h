@@ -1,25 +1,11 @@
-using namespace ns3;
-
 #ifndef SIMULACIONWIFI_H
 #define SIMULACIONWIFI_H
 
-#include "ns3/object.h"
-#include "ns3/global-value.h"
-#include "ns3/core-module.h"
-#include "ns3/csma-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/applications-module.h"
-#include "ns3/wifi-module.h"
-#include "ns3/mobility-module.h"
-#include "ns3/network-module.h"
-#include <ns3/average.h>
-#include <ns3/error-model.h>
-#include "ns3/point-to-point-module.h"
-#include "Observador.h"
+
+using namespace ns3;
 
 #define NODOS_SEDE2 30  //Número de nodos en la sede 2. Será fijo ya que sólo
                         //nos interesa medir en un sentido (problema simétrico).
-
 
 //Simulación simple para el servicio VoIP usando WIFI
 void
