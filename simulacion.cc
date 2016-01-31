@@ -24,17 +24,23 @@
 
 #define NODOS_SEDE2 30  //Número de nodos en la sede 2. Será fijo ya que sólo
                         //nos interesa medir en un sentido (problema simétrico).
+#define MAX_NODOS 100
+#define PASO_NODOS 10
+
+#define MOD1 0
+#define MOD2 1
+#define MOD3 2
 
 
 //Simulación simple para el servicio VoIP usando CSMA
 void
 simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 
-    double prob_error_pkt1, double prob_error_pkt2, double p2p_prob_error_pkt, std::string p2p_dataRate, 
+    double prob_error_bit1, double prob_error_bit2, double p2p_prob_error_bit, std::string p2p_dataRate, 
     std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 
 //Simulación simple para el servicio VoIP usando WIFI
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double p2p_prob_error_pkt,
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double p2p_prob_error_bit,
       std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 
 using namespace ns3;
@@ -55,138 +61,219 @@ main (int argc, char *argv[])
   GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
   Time::SetResolution (Time::US);
 
+  //Variables para definir la modalidad de L3VPN a usar
+  double p2p_prob_error_bit;
+  std::string p2p_dataRate; 
+  std::string p2p_delay;
 
+  //Probabilidad de error en los enlaces csma
   double perrorCSMA     = 1e-10;
-  //double perrorALOHA    = 1e-4;
+  
+  //Variables para obtener los resultados de las simulaciones simples.
   double porcentaje     = 0.0;
   double retardo        = 0.0;
   double tasa           = 0.0;
-  //std::string protocolo [] = {'CSMA', 'ALOHA', 'TONKEN RING'}
 
+  //Acumuladores para obtener resultados asociados a un número de nodos
   Average<double> acu_porcentaje;
   Average<double> acu_retardo; 
   Average<double> acu_tasa;
 
-  Gnuplot plotPorcentaje;
-  plotPorcentaje.SetTitle("Porcentaje de paquetes erróneos");
-  plotPorcentaje.SetLegend( "Número de nodos en la sede origen", "Porcentaje de Paquetes erróneos (%)");
-  
-  Gnuplot plotRetardo;
-  plotRetardo.SetTitle("Retardo medio");
-  plotRetardo.SetLegend( "Número de nodos en la sede origen", "Retardo medio (ms)");
-  
-  Gnuplot plotTasa;
-  plotTasa.SetTitle("Tasa efectiva");
-  plotTasa.SetLegend( "Número de nodos en la sede orgien", "Tasa efectiva (Mbps)");
-  
-  /* Hay que cambiar prot < 1 por prot <= WIFI */
-  for (int prot = CSMA; prot < 1; prot++)
+  //Por cada modalidad de L3VPN deberemos obetener 3 gráficas con
+  //2 curvas cada una.
+  for (int modalidad = MOD1; modalidad <= MOD3; modalidad++)
   {
-    std::stringstream sstm;
-  //  sstm << "Protocolo: " << protocolo[prot];
-    if (prot == CSMA)
-      sstm << "Protocolo: " << "CSMA";
-    /*else if (prot == WIFI)
-      sstm << "Protocolo: " << "WIFI";
-    */
-    std::string titleProt = sstm.str();
-
-    // Dataset para CSMA: porcentaje de errores, retardo medio y tasa efectiva media
-    Gnuplot2dDataset datosPorcentajeCSMA;
-    datosPorcentajeCSMA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-    datosPorcentajeCSMA.SetErrorBars(Gnuplot2dDataset::Y);
-    datosPorcentajeCSMA.SetTitle(titleProt);
-    
-    Gnuplot2dDataset datosRetardoCSMA;
-    datosRetardoCSMA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-    datosRetardoCSMA.SetErrorBars(Gnuplot2dDataset::Y);
-    datosRetardoCSMA.SetTitle(titleProt);
-    
-    Gnuplot2dDataset datosTasaCSMA;
-    datosTasaCSMA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-    datosTasaCSMA.SetErrorBars(Gnuplot2dDataset::Y);
-    datosTasaCSMA.SetTitle(titleProt);
-    
-    /*
-    // Dataset para ALOHA
-    Gnuplot2dDataset datosPorcentajeALOHA;
-    datosPorcentajeALOHA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-    datosPorcentajeALOHA.SetErrorBars(Gnuplot2dDataset::Y);
-    datosPorcentajeALOHA.SetTitle(titleProt);
-    
-    Gnuplot2dDataset datosRetardoALOHA;
-    datosRetardoALOHA.SetErrorBars(Gnuplot2dDataset::Y);
-    datosRetardoALOHA.SetTitle(titleProt);
-    
-    Gnuplot2dDataset datosTasaALOHA;
-    datosTasaALOHA.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-    datosTasaALOHA.SetErrorBars(Gnuplot2dDataset::Y);
-    datosTasaALOHA.SetTitle(titleProt);
-    */
-
-  for (int numNodos = 10; numNodos < 100; numNodos+=10)
-  {
-    NS_LOG_DEBUG("Número de nodos " << numNodos);
-    for(uint32_t numSimulaciones = 0; numSimulaciones < SIMULACIONES; numSimulaciones++)
+    //Cambiamos los parámetros del enlace p2p en función de la modalidad.
+    if (modalidad == MOD1)
     {
-      NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
-      if (prot==CSMA){
-        NS_LOG_DEBUG("Protocolo: CSMA");
-        //simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 1e-6, "2Mbps", 
-              //"2ms", retardo, porcentaje, tasa);
-        simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
-              perrorCSMA, 1e-6, "2Mbps", "2ms", retardo, porcentaje, tasa);
-        acu_porcentaje.Update(porcentaje);
-        acu_retardo.Update(retardo);
-        acu_tasa.Update(tasa);
+      p2p_prob_error_bit = 1e-5;
+      p2p_dataRate = "2Mbps"; 
+      p2p_delay = "140ms";
+    }
+    else if (modalidad == MOD2)
+    {
+      p2p_prob_error_bit = 1e-6;
+      p2p_dataRate = "7Mbps"; 
+      p2p_delay = "70ms";      
+    }
+    else
+    {
+      p2p_prob_error_bit = 1e-8;
+      p2p_dataRate = "20Mbps"; 
+      p2p_delay = "30ms";      
+    }
+
+    NS_LOG_DEBUG("Modalidad L3VPN: " << modalidad);
+    NS_LOG_DEBUG("Prob. error de bit (enlace p2p): " << p2p_prob_error_bit);
+    NS_LOG_DEBUG("Tasa (enlace p2p): " << p2p_dataRate);
+    NS_LOG_DEBUG("Retardo (enlace p2p): " << p2p_delay);
+    NS_LOG_DEBUG("---------------------------------------");
+    
+
+    //Preparamos las 3 gráficas
+    Gnuplot plotPorcentaje;
+    plotPorcentaje.SetTitle("Porcentaje de paquetes erróneos");
+    plotPorcentaje.SetLegend( "Número de nodos en la sede origen", "Porcentaje de Paquetes erróneos (%)");
+  
+    Gnuplot plotRetardo;
+    plotRetardo.SetTitle("Retardo medio");
+    plotRetardo.SetLegend( "Número de nodos en la sede origen", "Retardo medio (ms)");
+  
+    Gnuplot plotTasa;
+    plotTasa.SetTitle("Tasa efectiva");
+    plotTasa.SetLegend( "Número de nodos en la sede orgien", "Tasa efectiva (Mbps)");
+  
+    // Por cada protocolo debemos obtener 3 curvas (una para cada gráfica). 
+    for (int prot = CSMA; prot <= WIFI; prot++)
+    {
+      NS_LOG_DEBUG("Protocolo: " << prot);
+      NS_LOG_DEBUG("---------------------------------------");
+
+      std::stringstream sstm;
+
+      if (prot == CSMA)
+        sstm << "Protocolo: " << "CSMA";
+     else if (prot == WIFI)
+       sstm << "Protocolo: " << "WIFI";
+    
+     std::string titleProt = sstm.str();
+
+      // Datasets: porcentaje de errores, retardo medio y tasa efectiva media
+      // Preparamos las curvas.
+      Gnuplot2dDataset datosPorcentaje;
+      datosPorcentaje.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+      datosPorcentaje.SetErrorBars(Gnuplot2dDataset::Y);
+      datosPorcentaje.SetTitle(titleProt);
+    
+      Gnuplot2dDataset datosRetardo;
+      datosRetardo.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+      datosRetardo.SetErrorBars(Gnuplot2dDataset::Y);
+      datosRetardo.SetTitle(titleProt);
+    
+      Gnuplot2dDataset datosTasa;
+      datosTasa.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+      datosTasa.SetErrorBars(Gnuplot2dDataset::Y);
+      datosTasa.SetTitle(titleProt);
+    
+
+      for (int numNodos = 10; numNodos <= MAX_NODOS; numNodos += PASO_NODOS)
+      {
+        NS_LOG_DEBUG("Número de nodos " << numNodos);
+
+        for(uint32_t numSimulaciones = 0; numSimulaciones < SIMULACIONES; numSimulaciones++)
+        {
+
+         NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
+
+         if (prot==CSMA){
+           NS_LOG_DEBUG("Protocolo: CSMA");
+
+           simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
+                perrorCSMA, p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, tasa);
+          }
+           else if (prot == WIFI)
+          {
+           NS_LOG_DEBUG("Protocolo: WIFI");
+           simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 
+              p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, tasa);
+          }
+        
+          acu_porcentaje.Update(porcentaje);
+          acu_retardo.Update(retardo);
+          acu_tasa.Update(tasa);
+        }
+    
+    
+        // Añadimos los datos al punto para las tres gráficas
+        if(acu_porcentaje.Count() > 0)
+         datosPorcentaje.Add(numNodos, acu_porcentaje.Mean(), CalculaZ(acu_porcentaje.Var()));
+        acu_porcentaje.Reset();
+    
+        if(acu_retardo.Count() > 0)
+          datosRetardo.Add(numNodos, acu_retardo.Mean(), CalculaZ(acu_retardo.Var()));
+        acu_retardo.Reset();
+    
+        if(acu_tasa.Count() > 0)
+          datosTasa.Add(numNodos, acu_tasa.Mean(), CalculaZ(acu_tasa.Var()));
+       acu_tasa.Reset();
       }
-      /*else if (prot==ALOHA)
-      simulacionALOHA();
-      acu_porcentaje.Update(porcentaje);
-      acu_retardo.Update(retardo);
-      acu_tasa.Update(tasa);
-      */
+    
+      // Añadimos los dataset a cada gráfica
+      plotPorcentaje.AddDataset(datosPorcentaje);    
+      plotRetardo.AddDataset(datosRetardo);
+      plotTasa.AddDataset(datosTasa);
+    }
 
+    //SERÍA CONVENIENTE PASAR LO SIGUIENTE A UNA FUNCIÓN
+    //Pasamos la primera gráfica a un archivo en función de la modalidad simulada.
+    if (modalidad == MOD1)
+    {
+      std::ofstream fichero1("proyecto_mod1-1.plt");
+      plotPorcentaje.GenerateOutput(fichero1);
+      fichero1 << "pause -1" << std::endl;
+      fichero1.close();
     }
-    
-    // Añadimos los datos al punto para las tres gráficas
-    if(acu_porcentaje.Count() > 0)
-      datosPorcentajeCSMA.Add(numNodos, acu_porcentaje.Mean(), CalculaZ(acu_porcentaje.Var()));
-    acu_porcentaje.Reset();
-    
-    if(acu_retardo.Count() > 0)
-      datosRetardoCSMA.Add(numNodos, acu_retardo.Mean(), CalculaZ(acu_retardo.Var()));
-    acu_retardo.Reset();
-    
-    if(acu_tasa.Count() > 0)
-      datosTasaCSMA.Add(numNodos, acu_tasa.Mean(), CalculaZ(acu_tasa.Var()));
-    acu_tasa.Reset();
-    
+    else if (modalidad == MOD2)
+    {
+      std::ofstream fichero1("proyecto_mod2-1.plt");
+      plotPorcentaje.GenerateOutput(fichero1);
+      fichero1 << "pause -1" << std::endl;
+      fichero1.close();
+    } 
+    else
+    {
+      std::ofstream fichero1("proyecto_mod3-1.plt");
+      plotPorcentaje.GenerateOutput(fichero1);
+      fichero1 << "pause -1" << std::endl;
+      fichero1.close();
     }
-    
-    // Añadimos los dataset a cada gráfica
-    plotPorcentaje.AddDataset(datosPorcentajeCSMA);
-    //plotPorcentaje.AddDataset(datosPorcentajeALOHA);
-    plotRetardo.AddDataset(datosRetardoCSMA);
-    //plotPorcentaje.AddDataset(datosTasaALOHA);
-    plotTasa.AddDataset(datosTasaCSMA);
-    //plotPorcentaje.AddDataset(datosTasaALOHA);
+
+    //Pasamos la segunda gráfica a un archivo en función de la modalidad simulada.
+    if (modalidad == MOD1)
+    {
+      std::ofstream fichero2("proyecto_mod1-2.plt");
+      plotRetardo.GenerateOutput(fichero2);
+      fichero2 << "pause -1" << std::endl;
+      fichero2.close();
+    }
+    else if (modalidad == MOD2)
+    {
+      std::ofstream fichero2("proyecto_mod2-2.plt");
+      plotRetardo.GenerateOutput(fichero2);
+      fichero2 << "pause -1" << std::endl;
+      fichero2.close();
+    } 
+    else
+    {
+      std::ofstream fichero2("proyecto_mod3-2.plt");
+      plotRetardo.GenerateOutput(fichero2);
+      fichero2 << "pause -1" << std::endl;
+      fichero2.close();
+    }
+
+    //Pasamos la tercera gráfica a un archivo en función de la modalidad simulada.
+    if (modalidad == MOD1)
+    {
+      std::ofstream fichero3("proyecto_mod1-3.plt");
+      plotTasa.GenerateOutput(fichero3);
+      fichero3 << "pause -1" << std::endl;
+      fichero3.close();
+    }
+    else if (modalidad == MOD2)
+    {
+      std::ofstream fichero3("proyecto_mod2-3.plt");
+      plotTasa.GenerateOutput(fichero3);
+      fichero3 << "pause -1" << std::endl;
+      fichero3.close();
+    } 
+    else
+    {
+      std::ofstream fichero3("proyecto_mod3-3.plt");
+      plotTasa.GenerateOutput(fichero3);
+      fichero3 << "pause -1" << std::endl;
+      fichero3.close();
+    }
   }
-
-std::ofstream fichero1("proyecto-1.plt");
-plotPorcentaje.GenerateOutput(fichero1);
-fichero1 << "pause -1" << std::endl;
-fichero1.close();
-
-std::ofstream fichero2("proyecto-2.plt");
-plotRetardo.GenerateOutput(fichero2);
-fichero2 << "pause -1" << std::endl;
-fichero2.close();
-
-std::ofstream fichero3("proyecto-3.plt");
-plotTasa.GenerateOutput(fichero3);
-fichero3 << "pause -1" << std::endl;
-fichero3.close();
 
 return 0;
 }
@@ -199,30 +286,30 @@ simulacionCSMA (uint32_t nCsma,
                 Time toff,
                 uint32_t sizePkt,
                 DataRate dataRate,
-                double prob_error_pkt1,
-                double prob_error_pkt2,
-                double p2p_prob_error_pkt,
+                double prob_error_bit1,
+                double prob_error_bit2,
+                double p2p_prob_error_bit,
                 std::string p2p_dataRate,
                 std::string p2p_delay,
                 double& retardo,
                 double& porcentaje,
                 double& tasa)
 {
-NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 << prob_error_pkt2 
-  << p2p_prob_error_pkt << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
+NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_bit1 << prob_error_bit2 
+  << p2p_prob_error_bit << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
 
   // Creamos los modelos de errores y le asociamos los parámetros
   Ptr<RateErrorModel> modelo_error1 = CreateObject<RateErrorModel> ();
   Ptr<RateErrorModel> modelo_error2 = CreateObject<RateErrorModel> ();
   Ptr<RateErrorModel> modelo_error3 = CreateObject<RateErrorModel> ();
 
-  modelo_error1->SetRate(prob_error_pkt1);
+  modelo_error1->SetRate(prob_error_bit1);
   modelo_error1->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
-  modelo_error2->SetRate(prob_error_pkt2);
+  modelo_error2->SetRate(prob_error_bit2);
   modelo_error2->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
-  modelo_error3->SetRate(p2p_prob_error_pkt);
+  modelo_error3->SetRate(p2p_prob_error_bit);
   modelo_error3->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
   // Nodos que pertenecen a la red de área local de la sede 1
@@ -401,10 +488,10 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 <
 }
 
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double p2p_prob_error_pkt,
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double p2p_prob_error_bit,
       std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa)
 {
-  NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << p2p_prob_error_pkt << p2p_dataRate
+  NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << p2p_prob_error_bit << p2p_dataRate
           << p2p_delay << retardo << porcentaje << tasa);
   
   // Nodos que pertenecen a la red WAN de la sede 1.
@@ -468,7 +555,7 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
 
   // Creamos el modelo de error para el enlace p2p
   Ptr<RateErrorModel> modelo_error = CreateObject<RateErrorModel> ();
-  modelo_error->SetRate(p2p_prob_error_pkt);
+  modelo_error->SetRate(p2p_prob_error_bit);
   modelo_error->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
   // Instalamos el dispositivo en los nodos punto a punto
