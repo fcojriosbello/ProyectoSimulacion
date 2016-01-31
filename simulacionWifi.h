@@ -1,7 +1,7 @@
 using namespace ns3;
 
-#ifndef SIMULACIONCSMA_H
-#define SIMULACIONCSMA_H
+#ifndef SIMULACIONWIFI_H
+#define SIMULACIONWIFI_H
 
 #include "ns3/object.h"
 #include "ns3/global-value.h"
@@ -17,14 +17,14 @@ using namespace ns3;
 #include "ns3/point-to-point-module.h"
 #include "Observador.h"
 
-
 #define NODOS_SEDE2 30  //Número de nodos en la sede 2. Será fijo ya que sólo
                         //nos interesa medir en un sentido (problema simétrico).
 
-//Simulación simple para el servicio VoIP usando CSMA
+
+//Simulación simple para el servicio VoIP usando WIFI
 void
-simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 
-    double csma_prob_error_bit, std::string csma_dataRate, std::string csma_delay, double p2p_prob_error_bit, 
-    std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, std::string wifi_dataRate, 
+    double p2p_prob_error_bit, std::string p2p_dataRate, std::string p2p_delay, double& retardo, 
+    double& porcentaje, double& tasa);
 
 #endif
