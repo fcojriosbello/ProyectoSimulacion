@@ -16,8 +16,8 @@
 #include "Observador.h"
 #include <cmath>
 
-#define T_STUDENT 2.2622  //GENERICA, habrá que cambiarla al final
-#define SIMULACIONES 1  //HAbrá que modificarlo
+#define T_STUDENT 2.7765  
+#define SIMULACIONES 5
 
 #define CSMA 0
 #define WIFI 1
@@ -35,13 +35,14 @@
 //Simulación simple para el servicio VoIP usando CSMA
 void
 simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 
-    double prob_error_bit1, double prob_error_bit2, double p2p_prob_error_bit, std::string p2p_dataRate, 
-    std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
+    double csma_prob_error_bit, std::string csma_dataRate, std::string csma_delay, double p2p_prob_error_bit, 
+    std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 
 //Simulación simple para el servicio VoIP usando WIFI
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double p2p_prob_error_bit,
-      std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, std::string wifi_dataRate, 
+    double p2p_prob_error_bit, std::string p2p_dataRate, std::string p2p_delay, double& retardo, 
+    double& porcentaje, double& tasa);
 
 using namespace ns3;
 
@@ -66,9 +67,20 @@ main (int argc, char *argv[])
   std::string p2p_dataRate; 
   std::string p2p_delay;
 
-  //Probabilidad de error en los enlaces csma
-  double perrorCSMA     = 1e-10;
-  
+  //Parámetros de los enlaces csma
+  double csma_perror     = 1e-10;
+  std::string csma_dataRate = "10Mbps"; 
+  std::string csma_delay = "6560ns";
+
+  //Parámetros de wifi
+  std::string wifi_dataRate = "9Mbps"; 
+
+  //Parámetros de VoIP
+  Time ton = Time("0.150s");
+  Time toff = Time("0.650s");
+  uint32_t sizePkt = 40;
+  DataRate dataRate = DataRate("64kbps");
+
   //Variables para obtener los resultados de las simulaciones simples.
   double porcentaje     = 0.0;
   double retardo        = 0.0;
@@ -78,6 +90,39 @@ main (int argc, char *argv[])
   Average<double> acu_porcentaje;
   Average<double> acu_retardo; 
   Average<double> acu_tasa;
+
+
+  //----------------------Parámetros de entrada-------------------------
+  CommandLine cmd;
+  //Parámetros VoIP
+  cmd.AddValue ("ton", "Tiempo del periodo en on de VoIP", ton);
+  cmd.AddValue ("toff", "Tiempo del periodo en off de VoIP", toff);
+  cmd.AddValue ("sizePkt", "Tamaño del paquete VoIP", sizePkt);
+  cmd.AddValue ("dataRate", "Tasa de envío durante el periodo en on de VoIP", dataRate);
+  //Parámetros csma
+  cmd.AddValue ("csma_perror", "Probabilidad de error de bit para los enlaces csma", csma_perror);
+  cmd.AddValue ("csma_dataRate", "Tasa del enlace csma", csma_dataRate);
+  cmd.AddValue ("csma_delay", "Retardo del enlace csma", csma_delay);
+  //Parámetros wifi
+  cmd.AddValue ("wifi_dataRate", "Tasa del enlace wifi (6, 9, 12, 18, 24, 36, 48 o 54Mbps)", wifi_dataRate);  
+
+  cmd.Parse (argc,argv);
+
+  NS_LOG_INFO ("Se han configurado los siguientes argumentos de entrada:" << std::endl <<
+               "     -ton:             " << ton.GetDouble()/1e6 << "s" << std::endl <<
+               "     -toff:            " << toff.GetDouble()/1e6 << "s" << std::endl <<
+               "     -sizePkt:         " << sizePkt << "B" << std::endl <<
+               "     -dataRate:        " << dataRate.GetBitRate()/1e3 << "kbps" << std::endl <<
+               "     -csma_perror:     " << csma_perror << std::endl <<
+               "     -csma_dataRate:   " << csma_dataRate << std::endl <<
+               "     -csma_delay:      " << csma_delay << std::endl <<
+               "     -wifi_dataRate:   " << wifi_dataRate);
+
+  std::stringstream wifi_modulation;
+  wifi_modulation << "OfdmRate" << wifi_dataRate;
+  wifi_dataRate = wifi_modulation.str();
+  //-----------------------------------------------------------------------
+
 
   //Por cada modalidad de L3VPN deberemos obetener 3 gráficas con
   //2 curvas cada una.
@@ -121,22 +166,30 @@ main (int argc, char *argv[])
   
     Gnuplot plotTasa;
     plotTasa.SetTitle("Tasa efectiva");
-    plotTasa.SetLegend( "Número de nodos en la sede orgien", "Tasa efectiva (Mbps)");
+    plotTasa.SetLegend( "Número de nodos en la sede orgien", "Tasa efectiva (Kbps)");
   
     // Por cada protocolo debemos obtener 3 curvas (una para cada gráfica). 
     for (int prot = CSMA; prot <= WIFI; prot++)
     {
-      NS_LOG_DEBUG("Protocolo: " << prot);
-      NS_LOG_DEBUG("---------------------------------------");
-
-      std::stringstream sstm;
+      //std::stringstream sstm;
+      std::string titleProt;
 
       if (prot == CSMA)
-        sstm << "Protocolo: " << "CSMA";
+      {
+        //sstm << "Protocolo: CSMA";
+        titleProt = "Protocolo: CSMA";
+        NS_LOG_DEBUG("Protocolo: CSMA");
+      }
      else if (prot == WIFI)
-       sstm << "Protocolo: " << "WIFI";
+      {
+        //sstm << "Protocolo: WIFI";
+        titleProt = "Protocolo: WIFI";
+        NS_LOG_DEBUG("Protocolo: WIFI");
+      }
+
+      NS_LOG_DEBUG("---------------------------------------");
     
-     std::string titleProt = sstm.str();
+      //std::string titleProt = sstm.str();
 
       // Datasets: porcentaje de errores, retardo medio y tasa efectiva media
       // Preparamos las curvas.
@@ -168,19 +221,19 @@ main (int argc, char *argv[])
          if (prot==CSMA){
            NS_LOG_DEBUG("Protocolo: CSMA");
 
-           simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
-                perrorCSMA, p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, tasa);
+           simulacionCSMA (numNodos, ton, toff, sizePkt, dataRate, csma_perror, csma_dataRate, csma_delay,
+              p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, tasa);
           }
            else if (prot == WIFI)
           {
            NS_LOG_DEBUG("Protocolo: WIFI");
-           simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 
+           simulacionWifi (numNodos, ton, toff, sizePkt, dataRate, wifi_dataRate,
               p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, tasa);
           }
         
           acu_porcentaje.Update(porcentaje);
           acu_retardo.Update(retardo);
-          acu_tasa.Update(tasa);
+          acu_tasa.Update(tasa*1e3);
         }
     
     
@@ -286,8 +339,9 @@ simulacionCSMA (uint32_t nCsma,
                 Time toff,
                 uint32_t sizePkt,
                 DataRate dataRate,
-                double prob_error_bit1,
-                double prob_error_bit2,
+                double csma_prob_error_bit,
+                std::string csma_dataRate,
+                std::string csma_delay,                
                 double p2p_prob_error_bit,
                 std::string p2p_dataRate,
                 std::string p2p_delay,
@@ -295,7 +349,7 @@ simulacionCSMA (uint32_t nCsma,
                 double& porcentaje,
                 double& tasa)
 {
-NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_bit1 << prob_error_bit2 
+NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_bit
   << p2p_prob_error_bit << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
 
   // Creamos los modelos de errores y le asociamos los parámetros
@@ -303,10 +357,10 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_bit1 <
   Ptr<RateErrorModel> modelo_error2 = CreateObject<RateErrorModel> ();
   Ptr<RateErrorModel> modelo_error3 = CreateObject<RateErrorModel> ();
 
-  modelo_error1->SetRate(prob_error_bit1);
+  modelo_error1->SetRate(csma_prob_error_bit);
   modelo_error1->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
-  modelo_error2->SetRate(prob_error_bit2);
+  modelo_error2->SetRate(csma_prob_error_bit);
   modelo_error2->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
   modelo_error3->SetRate(p2p_prob_error_bit);
@@ -336,8 +390,8 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_bit1 <
   CsmaHelper csma;
   NetDeviceContainer csmaDevices1;
   NetDeviceContainer csmaDevices2;
-  csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps"));
-  csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (6560)));
+  csma.SetChannelAttribute ("DataRate", StringValue (csma_dataRate));
+  csma.SetChannelAttribute ("Delay", TimeValue (Time (csma_delay)));
   csmaDevices1 = csma.Install (csmaNodes1);
   csmaDevices2 = csma.Install (csmaNodes2);
 
@@ -488,11 +542,12 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_bit1 <
 }
 
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double p2p_prob_error_bit,
-      std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa)
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, std::string wifi_dataRate,
+    double p2p_prob_error_bit, std::string p2p_dataRate, std::string p2p_delay, 
+    double& retardo, double& porcentaje, double& tasa)
 {
-  NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << p2p_prob_error_bit << p2p_dataRate
-          << p2p_delay << retardo << porcentaje << tasa);
+  NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << wifi_dataRate << p2p_prob_error_bit
+         << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
   
   // Nodos que pertenecen a la red WAN de la sede 1.
   // Como primer nodo añadimos el encaminador de la operadora.
@@ -545,7 +600,7 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
   wifi.SetStandard(WIFI_PHY_STANDARD_80211a);
 
   wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", 
-      StringValue("OfdmRate9Mbps"), "ControlMode", StringValue("OfdmRate9Mbps"));
+      StringValue(wifi_dataRate), "ControlMode", StringValue(wifi_dataRate));
 
   // Añadimos el netDevice Wifi a cada nodo de la sede 1
   NetDeviceContainer wifiDevices1 = wifi.Install(wifiPhy1, wifiMac, wifiNodes1);
@@ -636,13 +691,6 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
   PacketSinkHelper sink ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
   ApplicationContainer appSink1 = sink.Install (wifiNodes1.Get (nWifi + 1));
   ApplicationContainer appSink2 = sink.Install (wifiNodes2.Get (NODOS_SEDE2 + 1)); 
-
-  /*appSink1.Start(Seconds(1.0));
-  appSink1.Stop(Seconds(23.0)); 
-
-  appSink2.Start(Seconds(1.0));
-  appSink2.Stop(Seconds(23.0)); */
-
 
   // Instalamos un cliente OnOff en los equipos de la sede 1.
   OnOffHelper VoIP1 ("ns3::UdpSocketFactory",
