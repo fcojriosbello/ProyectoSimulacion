@@ -1,23 +1,8 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-
-
 #include "ns3/gnuplot.h"
-#include <ns3/packet.h>
 #include "ns3/object.h"
-#include "ns3/global-value.h"
 #include "ns3/core-module.h"
-#include "ns3/csma-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/applications-module.h"
-#include "ns3/wifi-module.h"
-#include "ns3/mobility-module.h"
-#include "ns3/network-module.h"
 #include <ns3/average.h>
-#include <ns3/error-model.h>
-#include "ns3/point-to-point-module.h"
 #include <ns3/data-rate.h>
-#include <ns3/nstime.h>
-
 
 #include "simulacionCSMA.h"
 #include "simulacionWifi.h"
@@ -29,8 +14,6 @@
 #define CSMA 0
 #define WIFI 1
 
-#define NODOS_SEDE2 30  //Número de nodos en la sede 2. Será fijo ya que sólo
-                        //nos interesa medir en un sentido (problema simétrico).
 #define MAX_NODOS 100
 #define PASO_NODOS 10
 

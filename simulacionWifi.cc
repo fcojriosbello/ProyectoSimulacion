@@ -1,19 +1,13 @@
-#include "ns3/gnuplot.h"
-#include <ns3/packet.h>
 #include "ns3/object.h"
 #include "ns3/global-value.h"
 #include "ns3/core-module.h"
-#include "ns3/csma-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/wifi-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/network-module.h"
-#include <ns3/average.h>
 #include <ns3/error-model.h>
 #include "ns3/point-to-point-module.h"
-#include <ns3/data-rate.h>
-#include <ns3/nstime.h>
 
 #include "simulacionWifi.h"
 #include "Observador.h"
