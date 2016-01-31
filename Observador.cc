@@ -14,7 +14,6 @@ Observador::Observador ()
 
   m_tamPkt = 0;
   m_numPeticionesTx = 0;
-  m_numPktsPerdidos = 0;
   m_retardo = Time(0);
   m_acTiempos.Reset();
 }
@@ -108,8 +107,8 @@ Observador::GetTasaMedia () {
   if (m_acTiempos.Count() > 0)
     //El tamaño de paquete es fijo.
     //Obtenemos la tasa media a nivel de aplicación dividiendo el tamaño de la carga útil
-    //entre el tiempo medio de recepción de un pkt a nivel de aplicación.
-    result = (double)(m_tamPkt*8)/(double)(this->GetMediaTiempos() * 1e-6);
+    //total enviada durante la simulación entre la duración total de la simulación.
+    result = (double)((m_numPeticionesTx-(int)m_tiemposIniciales.size())*(m_tamPkt*8))/(m_tiempoSimulado.GetDouble() * 1e-6);
   else 
     result = 0.0;
 
@@ -124,4 +123,11 @@ Observador::SetTamPkt (uint32_t tamPkt)
 {
   NS_LOG_FUNCTION(tamPkt);
   m_tamPkt = tamPkt;
+}
+
+void
+Observador::SetTiempoSimulado (Time tiempoSimulado)
+{
+  NS_LOG_FUNCTION(tiempoSimulado);
+  m_tiempoSimulado = tiempoSimulado;
 }

@@ -54,6 +54,8 @@ main (int argc, char *argv[])
 {
   GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
   Time::SetResolution (Time::US);
+
+
   double perrorCSMA     = 1e-10;
   //double perrorALOHA    = 1e-4;
   double porcentaje     = 0.0;
@@ -380,6 +382,7 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 <
   }
 
   observador.SetTamPkt(sizePkt);
+  observador.SetTiempoSimulado(Seconds (18.0));
 
   // Lanzamos la simulación
   Simulator::Run ();
@@ -546,11 +549,11 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
   ApplicationContainer appSink1 = sink.Install (wifiNodes1.Get (nWifi + 1));
   ApplicationContainer appSink2 = sink.Install (wifiNodes2.Get (NODOS_SEDE2 + 1)); 
 
-  appSink1.Start(Seconds(1.0));
+  /*appSink1.Start(Seconds(1.0));
   appSink1.Stop(Seconds(23.0)); 
 
   appSink2.Start(Seconds(1.0));
-  appSink2.Stop(Seconds(23.0)); 
+  appSink2.Stop(Seconds(23.0)); */
 
 
   // Instalamos un cliente OnOff en los equipos de la sede 1.
@@ -613,6 +616,7 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
                   MakeCallback(&Observador::PktRecibido, &observador));
 
   observador.SetTamPkt(sizePkt);
+  observador.SetTiempoSimulado(Seconds(18.0));
 
   Simulator::Run();
   Simulator::Destroy();
