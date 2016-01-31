@@ -12,7 +12,6 @@ Observador::Observador ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
-  m_nodo = 0;
   m_tamPkt = 0;
   m_numPeticionesTx = 0;
   m_numPktsPerdidos = 0;
@@ -117,22 +116,6 @@ Observador::GetTasaMedia () {
   return result;
 }
 
-//Funcion para guardar en la variable m_nodo el identificador
-//del nodo al que esta asociado el Observador. Esto se usara 
-//en las trazas.
-void
-Observador::SetNodo (int nodo) 
-{ 
-  NS_LOG_FUNCTION(nodo);
-  m_nodo = nodo; 
-}
-
-
-//Funcion para obtener de la variable m_nodo el identificador
-//del nodo al que esta asociado el Observador. Esto se usara 
-//en las trazas.
-int     
-Observador::GetNodo () { return m_nodo; }
 
 //Función para indicar al objeto Observador el tamaño de la 
 //carga útil de los pkts que serán enviados.

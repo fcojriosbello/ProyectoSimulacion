@@ -18,12 +18,9 @@ public:
   double    GetMediaTiempos ();
   double    GetPorcentajePktsPerdidos ();
   double    GetTasaMedia();
-  void      SetNodo (int nodo);
-  int       GetNodo ();
   void      SetTamPkt (uint32_t tamPkt);
 
 private:
-  int m_nodo;
   int m_numPeticionesTx;
   int m_numPktsPerdidos;
   int m_numPktsRetrasados;

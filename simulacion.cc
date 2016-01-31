@@ -20,15 +20,10 @@
 #define SIMULACIONES 1  //HAbrá que modificarlo
 
 #define CSMA 0
-#define ALOHA 1
-#define TOKEN_RING 2 //Se modificará el valor cuando tengamos más protocolos
+#define WIFI 1
 
 #define NODOS_SEDE2 30  //Número de nodos en la sede 2. Será fijo ya que sólo
                         //nos interesa medir en un sentido (problema simétrico).
-
-#define MAXWIFI 18
-#define NWIFI 100
-#define PUNTOSDIST 25
 
 
 //Simulación simple para el servicio VoIP usando CSMA
@@ -36,6 +31,8 @@ void
 simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 
     double prob_error_pkt1, double prob_error_pkt2, double prob_error_pkt3, std::string p2p_dataRate, 
     std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
+
+//Simulación simple para el servicio VoIP usando WIFI
 void
 simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt,
       std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
@@ -57,7 +54,7 @@ main (int argc, char *argv[])
 {
   GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
   Time::SetResolution (Time::US);
-  //double perrorCSMA     = 1e-10;
+  double perrorCSMA     = 1e-10;
   //double perrorALOHA    = 1e-4;
   double porcentaje     = 0.0;
   double retardo        = 0.0;
@@ -70,25 +67,25 @@ main (int argc, char *argv[])
 
   Gnuplot plotPorcentaje;
   plotPorcentaje.SetTitle("Porcentaje de paquetes erróneos");
-  plotPorcentaje.SetLegend( "Número de nodos", "Porcentaje de Paquetes erróneos (%)");
+  plotPorcentaje.SetLegend( "Número de nodos en la sede origen", "Porcentaje de Paquetes erróneos (%)");
   
   Gnuplot plotRetardo;
   plotRetardo.SetTitle("Retardo medio");
-  plotRetardo.SetLegend( "Número de nodos", "Retardo medio (ms)");
+  plotRetardo.SetLegend( "Número de nodos en la sede origen", "Retardo medio (ms)");
   
   Gnuplot plotTasa;
   plotTasa.SetTitle("Tasa efectiva");
-  plotTasa.SetLegend( "Número de nodos", "Tasa efectiva (Mbps)");
+  plotTasa.SetLegend( "Número de nodos en la sede orgien", "Tasa efectiva (Mbps)");
   
-  /* Hay que cambiar prot < 1 por prot < 3 */
+  /* Hay que cambiar prot < 1 por prot <= WIFI */
   for (int prot = CSMA; prot < 1; prot++)
   {
     std::stringstream sstm;
   //  sstm << "Protocolo: " << protocolo[prot];
     if (prot == CSMA)
       sstm << "Protocolo: " << "CSMA";
-    /*else if (prot == ALOHA)
-      sstm << "Protocolo: " << "ALOHA";
+    /*else if (prot == WIFI)
+      sstm << "Protocolo: " << "WIFI";
     */
     std::string titleProt = sstm.str();
 
@@ -133,10 +130,10 @@ main (int argc, char *argv[])
       NS_LOG_DEBUG("Número de simulación " << numSimulaciones);
       if (prot==CSMA){
         NS_LOG_DEBUG("Protocolo: CSMA");
-        simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 1e-6, "2Mbps", 
-              "2ms", retardo, porcentaje, tasa);
-        //simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
-              //perrorCSMA, 1e-6, "2Mbps", "2ms", retardo, porcentaje, tasa);
+        //simulacionWifi (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"), 1e-6, "2Mbps", 
+              //"2ms", retardo, porcentaje, tasa);
+        simulacionCSMA (numNodos, Time("0.150s"), Time("0.650s"), (uint32_t)40, DataRate("64kbps"),perrorCSMA, 
+              perrorCSMA, 1e-6, "2Mbps", "2ms", retardo, porcentaje, tasa);
         acu_porcentaje.Update(porcentaje);
         acu_retardo.Update(retardo);
         acu_tasa.Update(tasa);
