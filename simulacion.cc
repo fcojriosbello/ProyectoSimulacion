@@ -29,12 +29,12 @@
 //Simulación simple para el servicio VoIP usando CSMA
 void
 simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 
-    double prob_error_pkt1, double prob_error_pkt2, double prob_error_pkt3, std::string p2p_dataRate, 
+    double prob_error_pkt1, double prob_error_pkt2, double p2p_prob_error_pkt, std::string p2p_dataRate, 
     std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 
 //Simulación simple para el servicio VoIP usando WIFI
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt,
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double p2p_prob_error_pkt,
       std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
 
 using namespace ns3;
@@ -201,7 +201,7 @@ simulacionCSMA (uint32_t nCsma,
                 DataRate dataRate,
                 double prob_error_pkt1,
                 double prob_error_pkt2,
-                double prob_error_pkt3,
+                double p2p_prob_error_pkt,
                 std::string p2p_dataRate,
                 std::string p2p_delay,
                 double& retardo,
@@ -209,7 +209,7 @@ simulacionCSMA (uint32_t nCsma,
                 double& tasa)
 {
 NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 << prob_error_pkt2 
-  << prob_error_pkt3 << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
+  << p2p_prob_error_pkt << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
 
   // Creamos los modelos de errores y le asociamos los parámetros
   Ptr<RateErrorModel> modelo_error1 = CreateObject<RateErrorModel> ();
@@ -222,7 +222,7 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 <
   modelo_error2->SetRate(prob_error_pkt2);
   modelo_error2->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
-  modelo_error3->SetRate(prob_error_pkt3);
+  modelo_error3->SetRate(p2p_prob_error_pkt);
   modelo_error3->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
   // Nodos que pertenecen a la red de área local de la sede 1
@@ -382,7 +382,8 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 <
   }
 
   observador.SetTamPkt(sizePkt);
-  observador.SetTiempoSimulado(Seconds (18.0));
+  //observador.SetTiempoSimulado(Seconds (18.0));
+  //observador.SetNumNodos(nCsma);
 
   // Lanzamos la simulación
   Simulator::Run ();
@@ -400,10 +401,10 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << prob_error_pkt1 <
 }
 
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double prob_error_pkt,
+simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, double p2p_prob_error_pkt,
       std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa)
 {
-  NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << prob_error_pkt << p2p_dataRate
+  NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << p2p_prob_error_pkt << p2p_dataRate
           << p2p_delay << retardo << porcentaje << tasa);
   
   // Nodos que pertenecen a la red WAN de la sede 1.
@@ -467,7 +468,7 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
 
   // Creamos el modelo de error para el enlace p2p
   Ptr<RateErrorModel> modelo_error = CreateObject<RateErrorModel> ();
-  modelo_error->SetRate(prob_error_pkt);
+  modelo_error->SetRate(p2p_prob_error_pkt);
   modelo_error->SetUnit(RateErrorModel::ERROR_UNIT_BIT);
 
   // Instalamos el dispositivo en los nodos punto a punto
@@ -616,7 +617,8 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
                   MakeCallback(&Observador::PktRecibido, &observador));
 
   observador.SetTamPkt(sizePkt);
-  observador.SetTiempoSimulado(Seconds(18.0));
+  //observador.SetTiempoSimulado(Seconds(18.0));
+  //observador.SetNumNodos(nWifi);
 
   Simulator::Run();
   Simulator::Destroy();

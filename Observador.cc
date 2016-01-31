@@ -108,7 +108,8 @@ Observador::GetTasaMedia () {
     //El tamaño de paquete es fijo.
     //Obtenemos la tasa media a nivel de aplicación dividiendo el tamaño de la carga útil
     //total enviada durante la simulación entre la duración total de la simulación.
-    result = (double)((m_numPeticionesTx-(int)m_tiemposIniciales.size())*(m_tamPkt*8))/(m_tiempoSimulado.GetDouble() * 1e-6);
+    //result = (((double)(m_numPeticionesTx-(int)m_tiemposIniciales.size())/(double)m_numNodos)*(m_tamPkt*8))/(m_tiempoSimulado.GetDouble() * 1e-6);
+    result = (double)(m_tamPkt*8)/(double)(this->GetMediaTiempos() * 1e-6);
   else 
     result = 0.0;
 
@@ -125,9 +126,16 @@ Observador::SetTamPkt (uint32_t tamPkt)
   m_tamPkt = tamPkt;
 }
 
-void
+/*void
 Observador::SetTiempoSimulado (Time tiempoSimulado)
 {
   NS_LOG_FUNCTION(tiempoSimulado);
   m_tiempoSimulado = tiempoSimulado;
 }
+
+void
+Observador::SetNumNodos (int numNodos)
+{
+  NS_LOG_FUNCTION(numNodos);
+  m_numNodos = numNodos;
+}*/

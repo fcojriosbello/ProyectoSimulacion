@@ -19,14 +19,16 @@ public:
   double    GetPorcentajePktsPerdidos ();
   double    GetTasaMedia();
   void      SetTamPkt (uint32_t tamPkt);
-  void      SetTiempoSimulado (Time tiempoSimulado);
+  //void      SetTiempoSimulado (Time tiempoSimulado);
+  //void      SetNumNodos (int numNodos);
 
 private:
   int m_numPeticionesTx;
   int m_numPktsRetrasados;
+  //int m_numNodos;
   uint32_t m_tamPkt;
   Time m_retardo;         //Tiempo transcurrido hasta la recepción del pkt.
-  Time m_tiempoSimulado;  //Tiempo que ha durado la simualción a nivel de aplicación
+  //Time m_tiempoSimulado;  //Tiempo que ha durado la simualción a nivel de aplicación
 
   Average<int64_t> m_acTiempos; //En micro segundos
   
