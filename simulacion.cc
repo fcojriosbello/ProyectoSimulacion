@@ -211,7 +211,7 @@ main (int argc, char *argv[])
         
           acu_porcentaje.Update(porcentaje);
           acu_retardo.Update(retardo);
-          acu_tasa.Update(tasa*1e3);
+          acu_tasa.Update(tasa);
         }
     
     

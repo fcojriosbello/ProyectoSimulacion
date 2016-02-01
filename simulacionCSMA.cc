@@ -216,11 +216,11 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
 
   retardo = observador.GetMediaTiempos()/1e3;
   porcentaje = observador.GetPorcentajePktsPerdidos();
-  tasa = observador.GetTasaMedia()/1e6;
+  tasa = observador.GetTasaMedia()/1e3;
 
 
   NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
   NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
-  NS_LOG_INFO("Tasa media efectiva: " << tasa << "Mbps");
+  NS_LOG_INFO("Tasa media efectiva: " << tasa << "Kbps");
 
 }
