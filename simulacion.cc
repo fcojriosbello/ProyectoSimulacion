@@ -235,7 +235,6 @@ main (int argc, char *argv[])
       plotTasa.AddDataset(datosTasa);
     }
 
-    //SERÍA CONVENIENTE PASAR LO SIGUIENTE A UNA FUNCIÓN
     //Pasamos la primera gráfica a un archivo en función de la modalidad simulada.
     if (modalidad == MOD1)
     {

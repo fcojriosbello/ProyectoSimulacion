@@ -227,8 +227,6 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
                   MakeCallback(&Observador::PktRecibido, &observador));
 
   observador.SetTamPkt(sizePkt);
-  //observador.SetTiempoSimulado(Seconds(18.0));
-  //observador.SetNumNodos(nWifi);
 
   Simulator::Run();
   Simulator::Destroy();

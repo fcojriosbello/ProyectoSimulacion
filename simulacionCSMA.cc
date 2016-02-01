@@ -207,8 +207,6 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
   }
 
   observador.SetTamPkt(sizePkt);
-  //observador.SetTiempoSimulado(Seconds (18.0));
-  //observador.SetNumNodos(nCsma);
 
   // Lanzamos la simulación
   Simulator::Run ();
