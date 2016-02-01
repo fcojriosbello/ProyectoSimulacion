@@ -11,6 +11,6 @@ using namespace ns3;
 void
 simulacionCSMA (uint32_t nCsma, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 
     double csma_prob_error_bit, std::string csma_dataRate, std::string csma_delay, double p2p_prob_error_bit, 
-    std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& tasa);
+    std::string p2p_dataRate, std::string p2p_delay, double& retardo, double& porcentaje, double& jitter);
 
 #endif

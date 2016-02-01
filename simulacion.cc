@@ -56,18 +56,18 @@ main (int argc, char *argv[])
   //Parámetros de VoIP
   Time ton = Time("0.150s");
   Time toff = Time("0.650s");
-  uint32_t sizePkt = 40;
+  uint32_t sizePkt = 160;
   DataRate dataRate = DataRate("64kbps");
 
   //Variables para obtener los resultados de las simulaciones simples.
   double porcentaje     = 0.0;
   double retardo        = 0.0;
-  double tasa           = 0.0;
+  double jitter         = 0.0;
 
   //Acumuladores para obtener resultados asociados a un número de nodos
   Average<double> acu_porcentaje;
   Average<double> acu_retardo; 
-  Average<double> acu_tasa;
+  Average<double> acu_jitter;
 
 
   //----------------------Parámetros de entrada-------------------------
@@ -109,21 +109,21 @@ main (int argc, char *argv[])
     //Cambiamos los parámetros del enlace p2p en función de la modalidad.
     if (modalidad == MOD1)
     {
-      p2p_prob_error_bit = 1e-5;
-      p2p_dataRate = "2Mbps"; 
+      p2p_prob_error_bit = 1e-6;
+      p2p_dataRate = "2Mbps";
       p2p_delay = "140ms";
     }
     else if (modalidad == MOD2)
     {
-      p2p_prob_error_bit = 1e-6;
-      p2p_dataRate = "7Mbps"; 
-      p2p_delay = "70ms";      
+      p2p_prob_error_bit = 1e-7;
+      p2p_dataRate = "7Mbps";
+      p2p_delay = "70ms";
     }
     else
     {
-      p2p_prob_error_bit = 1e-8;
-      p2p_dataRate = "20Mbps"; 
-      p2p_delay = "30ms";      
+      p2p_prob_error_bit = 1e-9;
+      p2p_dataRate = "20Mbps";
+      p2p_delay = "30ms";
     }
 
     NS_LOG_DEBUG("Modalidad L3VPN: " << modalidad);
@@ -142,34 +142,29 @@ main (int argc, char *argv[])
     plotRetardo.SetTitle("Retardo medio");
     plotRetardo.SetLegend( "Número de nodos en la sede origen", "Retardo medio (ms)");
   
-    Gnuplot plotTasa;
-    plotTasa.SetTitle("Tasa efectiva");
-    plotTasa.SetLegend( "Número de nodos en la sede orgien", "Tasa efectiva (Kbps)");
+    Gnuplot plotJitter;
+    plotJitter.SetTitle("Jitter medio");
+    plotJitter.SetLegend( "Número de nodos en la sede orgien", "Jitter (ms)");
   
     // Por cada protocolo debemos obtener 3 curvas (una para cada gráfica). 
     for (int prot = CSMA; prot <= WIFI; prot++)
     {
-      //std::stringstream sstm;
       std::string titleProt;
 
       if (prot == CSMA)
       {
-        //sstm << "Protocolo: CSMA";
         titleProt = "Protocolo: CSMA";
         NS_LOG_DEBUG("Protocolo: CSMA");
       }
      else if (prot == WIFI)
       {
-        //sstm << "Protocolo: WIFI";
         titleProt = "Protocolo: WIFI";
         NS_LOG_DEBUG("Protocolo: WIFI");
       }
 
       NS_LOG_DEBUG("---------------------------------------");
-    
-      //std::string titleProt = sstm.str();
 
-      // Datasets: porcentaje de errores, retardo medio y tasa efectiva media
+      // Datasets: porcentaje de errores, retardo medio y jitter medio
       // Preparamos las curvas.
       Gnuplot2dDataset datosPorcentaje;
       datosPorcentaje.SetStyle(Gnuplot2dDataset::LINES_POINTS);
@@ -181,10 +176,10 @@ main (int argc, char *argv[])
       datosRetardo.SetErrorBars(Gnuplot2dDataset::Y);
       datosRetardo.SetTitle(titleProt);
     
-      Gnuplot2dDataset datosTasa;
-      datosTasa.SetStyle(Gnuplot2dDataset::LINES_POINTS);
-      datosTasa.SetErrorBars(Gnuplot2dDataset::Y);
-      datosTasa.SetTitle(titleProt);
+      Gnuplot2dDataset datosJitter;
+      datosJitter.SetStyle(Gnuplot2dDataset::LINES_POINTS);
+      datosJitter.SetErrorBars(Gnuplot2dDataset::Y);
+      datosJitter.SetTitle(titleProt);
     
 
       for (int numNodos = 10; numNodos <= MAX_NODOS; numNodos += PASO_NODOS)
@@ -200,18 +195,18 @@ main (int argc, char *argv[])
            NS_LOG_DEBUG("Protocolo: CSMA");
 
            simulacionCSMA (numNodos, ton, toff, sizePkt, dataRate, csma_perror, csma_dataRate, csma_delay,
-              p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, tasa);
+              p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, jitter);
           }
            else if (prot == WIFI)
           {
            NS_LOG_DEBUG("Protocolo: WIFI");
            simulacionWifi (numNodos, ton, toff, sizePkt, dataRate, wifi_dataRate,
-              p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, tasa);
+              p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, jitter);
           }
         
           acu_porcentaje.Update(porcentaje);
           acu_retardo.Update(retardo);
-          acu_tasa.Update(tasa);
+          acu_jitter.Update(jitter);
         }
     
     
@@ -224,15 +219,15 @@ main (int argc, char *argv[])
           datosRetardo.Add(numNodos, acu_retardo.Mean(), CalculaZ(acu_retardo.Var()));
         acu_retardo.Reset();
     
-        if(acu_tasa.Count() > 0)
-          datosTasa.Add(numNodos, acu_tasa.Mean(), CalculaZ(acu_tasa.Var()));
-       acu_tasa.Reset();
+        if(acu_jitter.Count() > 0)
+          datosJitter.Add(numNodos, acu_jitter.Mean(), CalculaZ(acu_jitter.Var()));
+       acu_jitter.Reset();
       }
     
       // Añadimos los dataset a cada gráfica
       plotPorcentaje.AddDataset(datosPorcentaje);    
       plotRetardo.AddDataset(datosRetardo);
-      plotTasa.AddDataset(datosTasa);
+      plotJitter.AddDataset(datosJitter);
     }
 
     //Pasamos la primera gráfica a un archivo en función de la modalidad simulada.
@@ -285,21 +280,21 @@ main (int argc, char *argv[])
     if (modalidad == MOD1)
     {
       std::ofstream fichero3("proyecto_mod1-3.plt");
-      plotTasa.GenerateOutput(fichero3);
+      plotJitter.GenerateOutput(fichero3);
       fichero3 << "pause -1" << std::endl;
       fichero3.close();
     }
     else if (modalidad == MOD2)
     {
       std::ofstream fichero3("proyecto_mod2-3.plt");
-      plotTasa.GenerateOutput(fichero3);
+      plotJitter.GenerateOutput(fichero3);
       fichero3 << "pause -1" << std::endl;
       fichero3.close();
     } 
     else
     {
       std::ofstream fichero3("proyecto_mod3-3.plt");
-      plotTasa.GenerateOutput(fichero3);
+      plotJitter.GenerateOutput(fichero3);
       fichero3 << "pause -1" << std::endl;
       fichero3.close();
     }

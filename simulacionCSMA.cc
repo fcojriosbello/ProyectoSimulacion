@@ -31,10 +31,10 @@ simulacionCSMA (uint32_t nCsma,
                 std::string p2p_delay,
                 double& retardo,
                 double& porcentaje,
-                double& tasa)
+                double& jitter)
 {
 NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_bit
-  << p2p_prob_error_bit << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
+  << p2p_prob_error_bit << p2p_dataRate << p2p_delay << retardo << porcentaje << jitter);
 
   // Creamos los modelos de errores y le asociamos los parámetros
   Ptr<RateErrorModel> modelo_error1 = CreateObject<RateErrorModel> ();
@@ -214,11 +214,11 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
 
   retardo = observador.GetMediaTiempos()/1e3;
   porcentaje = observador.GetPorcentajePktsPerdidos();
-  tasa = observador.GetTasaMedia()/1e3;
+  jitter = observador.GetJitter()/1e3;
 
 
   NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
   NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
-  NS_LOG_INFO("Tasa media efectiva: " << tasa << "Kbps");
+  NS_LOG_INFO("jitter medio: " << jitter << "ms");
 
 }

@@ -11,6 +11,6 @@ using namespace ns3;
 void
 simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, std::string wifi_dataRate, 
     double p2p_prob_error_bit, std::string p2p_dataRate, std::string p2p_delay, double& retardo, 
-    double& porcentaje, double& tasa);
+    double& porcentaje, double& jitter);
 
 #endif

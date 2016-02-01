@@ -10,10 +10,13 @@ Observador::Observador ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
-  m_tamPkt = 0;
   m_numPeticionesTx = 0;
+  m_tamPkt = 0;
+  m_jitter = 0.0;
   m_retardo = Time(0);
+  m_retardoPrevio = Time(0);
   m_acTiempos.Reset();
+  m_acJitter.Reset();
 }
 
 
@@ -47,9 +50,24 @@ Observador::PktRecibido (Ptr<const Packet> paquete, const Address &)
     //Calculamos el tiempo transcurrido.
     m_retardo = Simulator::Now() - m_tiemposIniciales[paquete->GetUid()];
 
-    //Actualizamos el acumulador.
+    //Actualizamos el acumulador de tiempos.
     m_acTiempos.Update(m_retardo.GetDouble());
-    NS_LOG_DEBUG ("Se ha recibido un paquete en el sumidero en  " << m_retardo.GetDouble()/1e3 << "ms.");
+    NS_LOG_DEBUG ("Se ha recibido un paquete en el sumidero en  " << m_retardo.GetDouble()/1e3 << "ms.");    
+
+    if (m_retardoPrevio.GetDouble() != 0.0)
+    {
+      //Calculamos el jitter
+      m_jitter = m_retardo.GetDouble() - m_retardoPrevio.GetDouble();
+      //Hacemos el valor absoluto del jitter
+      m_jitter = m_jitter < 0 ? -m_jitter : m_jitter;
+
+      //Actualizamos el acumulador de jitter.
+      m_acJitter.Update(m_jitter);
+      NS_LOG_DEBUG("Se ha calculado un jitter de: " << m_jitter*1e-3);
+    }
+
+    //Actualizamos la variable m_retardoPrevio
+    m_retardoPrevio = m_retardo;
 
     //Eliminamos el paquete de la estructura
     m_tiemposIniciales.erase(m_iterador);
@@ -60,8 +78,7 @@ Observador::PktRecibido (Ptr<const Packet> paquete, const Address &)
 
 
 
-//Devuelve el tiempo medio de ECO del nodo asociado al
-//objeto Observador. Se devuelve en ns.
+//Devuelve el tiempo de retardo medio en micro segundos.
 double
 Observador::GetMediaTiempos ()
 {
@@ -77,8 +94,7 @@ Observador::GetMediaTiempos ()
 }
 
 
-//Devuelve el porcentaje de paquetes perdidos al llegar al 
-//numero maximo de intentos configurado.
+//Devuelve el porcentaje de paquetes perdidos.
 double  
 Observador::GetPorcentajePktsPerdidos()
 {
@@ -93,7 +109,7 @@ Observador::GetPorcentajePktsPerdidos()
 }
 
 
-
+//Devuelve la tasa efectiva media a nivel de aplicación.
 double
 Observador::GetTasaMedia () {
 
@@ -107,6 +123,22 @@ Observador::GetTasaMedia () {
     //Obtenemos la tasa media a nivel de aplicación dividiendo el tamaño de la carga útil
     //total enviada durante la simulación entre la duración total de la simulación.
     result = (double)(m_tamPkt*8)/(double)(this->GetMediaTiempos() * 1e-6);
+  else 
+    result = 0.0;
+
+  return result;
+}
+
+//Devuelve el jitter medio en micro segundos
+double
+Observador::GetJitter ()
+{
+  NS_LOG_FUNCTION_NOARGS();
+
+  double result;
+
+  if (m_acJitter.Count() > 0)
+    result = m_acJitter.Mean(); 
   else 
     result = 0.0;
 

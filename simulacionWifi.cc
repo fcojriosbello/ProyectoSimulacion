@@ -19,10 +19,10 @@ NS_LOG_COMPONENT_DEFINE ("simulacionWifi");
 void
 simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, std::string wifi_dataRate,
     double p2p_prob_error_bit, std::string p2p_dataRate, std::string p2p_delay, 
-    double& retardo, double& porcentaje, double& tasa)
+    double& retardo, double& porcentaje, double& jitter)
 {
   NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << wifi_dataRate << p2p_prob_error_bit
-         << p2p_dataRate << p2p_delay << retardo << porcentaje << tasa);
+         << p2p_dataRate << p2p_delay << retardo << porcentaje << jitter);
   
   // Nodos que pertenecen a la red WAN de la sede 1.
   // Como primer nodo añadimos el encaminador de la operadora.
@@ -233,11 +233,11 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
 
   retardo = observador.GetMediaTiempos()/1e3;
   porcentaje = observador.GetPorcentajePktsPerdidos();
-  tasa = observador.GetTasaMedia()/1e3;
+  jitter = observador.GetJitter()/1e3;
 
 
   NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
   NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
-  NS_LOG_INFO("Tasa media efectiva: " << tasa << "Kbps");
+  NS_LOG_INFO("jitter medio: " << jitter << "ms");
 
 }

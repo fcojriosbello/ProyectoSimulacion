@@ -15,15 +15,19 @@ public:
   double    GetMediaTiempos ();
   double    GetPorcentajePktsPerdidos ();
   double    GetTasaMedia();
+  double    GetJitter ();
   void      SetTamPkt (uint32_t tamPkt);
 
 private:
   int m_numPeticionesTx;
-  int m_numPktsRetrasados;
   uint32_t m_tamPkt;
-  Time m_retardo;         //Tiempo transcurrido hasta la recepción del pkt.
+  double m_jitter;
 
-  Average<int64_t> m_acTiempos; //En micro segundos
+  Time m_retardo;         //Tiempo transcurrido hasta la recepción del pkt.
+  Time m_retardoPrevio;   //Retardo calculado en el paquete previo.
+
+  Average<double> m_acTiempos; //Acumulador de retardos en micro segundos.
+  Average<double> m_acJitter;  //Acumulador de jitter en micro segundos.
   
   std::map<uint64_t, Time> m_tiemposIniciales;    //Estructura tipo map para almacenar los 
                                                   //tiempos de envio de cada paquete.
