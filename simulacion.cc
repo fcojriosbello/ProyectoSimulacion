@@ -120,13 +120,13 @@ main (int argc, char *argv[])
     {
       p2p_prob_error_bit = 1e-6;
       p2p_dataRate = "2Mbps";
-      p2p_delay = "140ms";
+      p2p_delay = "200ms";
     }
     else if (modalidad == MOD2)
     {
       p2p_prob_error_bit = 1e-7;
       p2p_dataRate = "7Mbps";
-      p2p_delay = "70ms";
+      p2p_delay = "120ms";
     }
     else
     {

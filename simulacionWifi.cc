@@ -47,7 +47,7 @@ simulacionWifi (uint32_t nWifi, uint32_t nodosSede2, Time ton, Time toff, uint32
 
   YansWifiChannelHelper wifiChannel;
   wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-  wifiChannel.AddPropagationLoss("ns3::LogDistancePropagationLossModel", "Exponent", DoubleValue(3.0));
+  wifiChannel.AddPropagationLoss("ns3::LogDistancePropagationLossModel", "Exponent", DoubleValue(6.0));
   Ptr<YansWifiChannel> canalWifi1 = wifiChannel.Create();
   Ptr<YansWifiChannel> canalWifi2 = wifiChannel.Create();
 
@@ -225,8 +225,6 @@ simulacionWifi (uint32_t nWifi, uint32_t nodosSede2, Time ton, Time toff, uint32
   //Conectamos la traza del sumidero al observador.
   appSink2.Get(0)->GetObject<PacketSink>()->TraceConnectWithoutContext ("Rx", 
                   MakeCallback(&Observador::PktRecibido, &observador));
-
-  observador.SetTamPkt(sizePkt);
 
   Simulator::Run();
   Simulator::Destroy();

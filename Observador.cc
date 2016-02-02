@@ -11,7 +11,6 @@ Observador::Observador ()
   NS_LOG_FUNCTION_NOARGS ();
 
   m_numPeticionesTx = 0;
-  m_tamPkt = 0;
   m_jitter = 0.0;
   m_retardo = Time(0);
   m_retardoPrevio = Time(0);
@@ -109,26 +108,6 @@ Observador::GetPorcentajePktsPerdidos()
 }
 
 
-//Devuelve la tasa efectiva media a nivel de aplicación.
-double
-Observador::GetTasaMedia () {
-
-  NS_LOG_FUNCTION_NOARGS ();
-
-  double result;
-
-  //Comprobamos que se haya realizado correctamente algun envio
-  if (m_acTiempos.Count() > 0)
-    //El tamaño de paquete es fijo.
-    //Obtenemos la tasa media a nivel de aplicación dividiendo el tamaño de la carga útil
-    //total enviada durante la simulación entre la duración total de la simulación.
-    result = (double)(m_tamPkt*8)/(double)(this->GetMediaTiempos() * 1e-6);
-  else 
-    result = 0.0;
-
-  return result;
-}
-
 //Devuelve el jitter medio en micro segundos
 double
 Observador::GetJitter ()
@@ -143,14 +122,4 @@ Observador::GetJitter ()
     result = 0.0;
 
   return result;
-}
-
-
-//Función para indicar al objeto Observador el tamaño de la 
-//carga útil de los pkts que serán enviados.
-void
-Observador::SetTamPkt (uint32_t tamPkt)
-{
-  NS_LOG_FUNCTION(tamPkt);
-  m_tamPkt = tamPkt;
 }

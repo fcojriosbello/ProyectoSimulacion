@@ -4,6 +4,8 @@
 
 using namespace ns3;
 
+#define NUM_REINTENTOS 8
+
 //Simulación simple para el servicio VoIP usando CSMA
 void
 simulacionCSMA (uint32_t nCsma, uint32_t nodosSede2, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 

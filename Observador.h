@@ -14,13 +14,10 @@ public:
   void      PktRecibido (Ptr<const Packet> paquete, const Address &);
   double    GetMediaTiempos ();
   double    GetPorcentajePktsPerdidos ();
-  double    GetTasaMedia();
   double    GetJitter ();
-  void      SetTamPkt (uint32_t tamPkt);
 
 private:
   int m_numPeticionesTx;
-  uint32_t m_tamPkt;
   double m_jitter;
 
   Time m_retardo;         //Tiempo transcurrido hasta la recepción del pkt.

@@ -198,16 +198,14 @@ NS_LOG_FUNCTION(nCsma << nodosSede2 << ton << toff << sizePkt << dataRate << csm
   for (uint32_t j = 1; j <= nCsma; j++)
   {
     //Aprovechamos para cambiar el numero maximo de reintentos de tx.
-    csmaDevices1.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 16);
+    csmaDevices1.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, NUM_REINTENTOS);
   }
 
     for (uint32_t j = 1; j <= nodosSede2; j++)
   {
     //Aprovechamos para cambiar el numero maximo de reintentos de tx.
-    csmaDevices2.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 16);
+    csmaDevices2.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, NUM_REINTENTOS);
   }
-
-  observador.SetTamPkt(sizePkt);
 
   // Lanzamos la simulación
   Simulator::Run ();
