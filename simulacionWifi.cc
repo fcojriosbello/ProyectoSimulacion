@@ -17,11 +17,11 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("simulacionWifi");
 
 void
-simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, std::string wifi_dataRate,
-    double p2p_prob_error_bit, std::string p2p_dataRate, std::string p2p_delay, 
+simulacionWifi (uint32_t nWifi, uint32_t nodosSede2, Time ton, Time toff, uint32_t sizePkt, DataRate dataRate, 
+    std::string wifi_dataRate, double p2p_prob_error_bit, std::string p2p_dataRate, std::string p2p_delay, 
     double& retardo, double& porcentaje, double& jitter)
 {
-  NS_LOG_FUNCTION (nWifi << ton << toff << sizePkt << dataRate << wifi_dataRate << p2p_prob_error_bit
+  NS_LOG_FUNCTION (nWifi << nodosSede2 << ton << toff << sizePkt << dataRate << wifi_dataRate << p2p_prob_error_bit
          << p2p_dataRate << p2p_delay << retardo << porcentaje << jitter);
   
   // Nodos que pertenecen a la red WAN de la sede 1.
@@ -36,7 +36,7 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
   // Tendrá un número de nodos fijos ya que sólo 
   // nos interesa medir en un sentido (problema simétrico).
   NodeContainer wifiNodes2;
-  wifiNodes2.Create(NODOS_SEDE2+2);
+  wifiNodes2.Create(nodosSede2+2);
 
 
   // Nodos que pertenecen al enlace punto a punto.
@@ -165,11 +165,11 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
 
   PacketSinkHelper sink ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
   ApplicationContainer appSink1 = sink.Install (wifiNodes1.Get (nWifi + 1));
-  ApplicationContainer appSink2 = sink.Install (wifiNodes2.Get (NODOS_SEDE2 + 1)); 
+  ApplicationContainer appSink2 = sink.Install (wifiNodes2.Get (nodosSede2 + 1)); 
 
   // Instalamos un cliente OnOff en los equipos de la sede 1.
   OnOffHelper VoIP1 ("ns3::UdpSocketFactory",
-          Address (InetSocketAddress (interfacesWifi2.GetAddress (NODOS_SEDE2 + 1), port)));
+          Address (InetSocketAddress (interfacesWifi2.GetAddress (nodosSede2 + 1), port)));
 
   // Creamos las variables aleatorias para los tiempos de on y off
   Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
@@ -206,7 +206,7 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
 
   NodeContainer clientes2;
 
-  for (uint32_t i = 1; i <= NODOS_SEDE2; i++)
+  for (uint32_t i = 1; i <= nodosSede2; i++)
     clientes2.Add(wifiNodes2.Get(i));
 
   //Instalamos la aplicación On/Off en todos y cada uno de 
@@ -238,6 +238,6 @@ simulacionWifi (uint32_t nWifi, Time ton, Time toff, uint32_t sizePkt, DataRate 
 
   NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
   NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
-  NS_LOG_INFO("jitter medio: " << jitter << "ms");
+  NS_LOG_INFO("Jitter medio: " << jitter << "ms");
 
 }

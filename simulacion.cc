@@ -8,14 +8,17 @@
 #include "simulacionWifi.h"
 #include <cmath>
 
-#define T_STUDENT 2.7765  
-#define SIMULACIONES 5
+#define T_STUDENT 2.2622  
+#define SIMULACIONES 10
 
 #define CSMA 0
 #define WIFI 1
 
 #define MAX_NODOS 100
 #define PASO_NODOS 10
+
+#define NODOS_SEDE2 30  //Número de nodos en la sede 2. Será fijo ya que sólo
+                        //nos interesa medir en un sentido (problema simétrico).
 
 #define MOD1 0
 #define MOD2 1
@@ -39,6 +42,9 @@ main (int argc, char *argv[])
 {
   GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
   Time::SetResolution (Time::US);
+
+  //Variable que define el número de nodos en la sede 2.
+  uint32_t nodosSede2 = NODOS_SEDE2;
 
   //Variables para definir la modalidad de L3VPN a usar
   double p2p_prob_error_bit;
@@ -82,7 +88,9 @@ main (int argc, char *argv[])
   cmd.AddValue ("csma_dataRate", "Tasa del enlace csma", csma_dataRate);
   cmd.AddValue ("csma_delay", "Retardo del enlace csma", csma_delay);
   //Parámetros wifi
-  cmd.AddValue ("wifi_dataRate", "Tasa del enlace wifi (6, 9, 12, 18, 24, 36, 48 o 54Mbps)", wifi_dataRate);  
+  cmd.AddValue ("wifi_dataRate", "Tasa del enlace wifi (6, 9, 12, 18, 24, 36, 48 o 54Mbps)", wifi_dataRate);
+  //Parámetro para definir el número de nodos de la sede 2.
+  cmd.AddValue ("nodosSede2", "Número de nodos VoIP de la sede 2", nodosSede2);  
 
   cmd.Parse (argc,argv);
 
@@ -94,7 +102,8 @@ main (int argc, char *argv[])
                "     -csma_perror:     " << csma_perror << std::endl <<
                "     -csma_dataRate:   " << csma_dataRate << std::endl <<
                "     -csma_delay:      " << csma_delay << std::endl <<
-               "     -wifi_dataRate:   " << wifi_dataRate);
+               "     -wifi_dataRate:   " << wifi_dataRate << std::endl <<
+               "     -nodosSede2:      " << nodosSede2);
 
   std::stringstream wifi_modulation;
   wifi_modulation << "OfdmRate" << wifi_dataRate;
@@ -144,7 +153,7 @@ main (int argc, char *argv[])
   
     Gnuplot plotJitter;
     plotJitter.SetTitle("Jitter medio");
-    plotJitter.SetLegend( "Número de nodos en la sede orgien", "Jitter (ms)");
+    plotJitter.SetLegend( "Número de nodos en la sede origen", "Jitter (ms)");
   
     // Por cada protocolo debemos obtener 3 curvas (una para cada gráfica). 
     for (int prot = CSMA; prot <= WIFI; prot++)
@@ -194,13 +203,13 @@ main (int argc, char *argv[])
          if (prot==CSMA){
            NS_LOG_DEBUG("Protocolo: CSMA");
 
-           simulacionCSMA (numNodos, ton, toff, sizePkt, dataRate, csma_perror, csma_dataRate, csma_delay,
+           simulacionCSMA (numNodos, nodosSede2, ton, toff, sizePkt, dataRate, csma_perror, csma_dataRate, csma_delay,
               p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, jitter);
           }
            else if (prot == WIFI)
           {
            NS_LOG_DEBUG("Protocolo: WIFI");
-           simulacionWifi (numNodos, ton, toff, sizePkt, dataRate, wifi_dataRate,
+           simulacionWifi (numNodos, nodosSede2, ton, toff, sizePkt, dataRate, wifi_dataRate,
               p2p_prob_error_bit, p2p_dataRate, p2p_delay, retardo, porcentaje, jitter);
           }
         

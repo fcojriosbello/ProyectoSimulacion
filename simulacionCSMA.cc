@@ -19,6 +19,7 @@ NS_LOG_COMPONENT_DEFINE ("simulacionCSMA");
 //Simulación simple para el servicio VoIP usando CSMA
 void
 simulacionCSMA (uint32_t nCsma,
+                uint32_t nodosSede2,
                 Time ton,
                 Time toff,
                 uint32_t sizePkt,
@@ -33,7 +34,7 @@ simulacionCSMA (uint32_t nCsma,
                 double& porcentaje,
                 double& jitter)
 {
-NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_bit
+NS_LOG_FUNCTION(nCsma << nodosSede2 << ton << toff << sizePkt << dataRate << csma_prob_error_bit
   << p2p_prob_error_bit << p2p_dataRate << p2p_delay << retardo << porcentaje << jitter);
 
   // Creamos los modelos de errores y le asociamos los parámetros
@@ -62,7 +63,7 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
   // Tendrá un número de nodos fijos ya que sólo 
   // nos interesa medir en un sentido (problema simétrico).
   NodeContainer csmaNodes2;
-  csmaNodes2.Create (NODOS_SEDE2 + 2);
+  csmaNodes2.Create (nodosSede2 + 2);
 
   // Nodos que pertenecen al enlace punto a punto.
   // Nodo cero de cada red csma.
@@ -92,7 +93,7 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
   csmaDevices1.Get (k)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error1));
 
   //Configuramos el error del canal en las interfaces de la sede 2
-  for (uint32_t k = 0; k < NODOS_SEDE2+2; k++ )
+  for (uint32_t k = 0; k < nodosSede2+2; k++ )
   csmaDevices2.Get (k)->SetAttribute ("ReceiveErrorModel", PointerValue (modelo_error3));
 
   //Configuramos el error del enlace p2p 
@@ -132,11 +133,11 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
   PacketSinkHelper sink ("ns3::UdpSocketFactory",
                          Address (InetSocketAddress (Ipv4Address::GetAny (), port)));
   ApplicationContainer appSink1 = sink.Install (csmaNodes1.Get (nCsma + 1));
-  ApplicationContainer appSink2 = sink.Install (csmaNodes2.Get (NODOS_SEDE2 + 1)); 
+  ApplicationContainer appSink2 = sink.Install (csmaNodes2.Get (nodosSede2 + 1)); 
 
   // Instalamos un cliente OnOff en los equipos de la sede 1.
   OnOffHelper VoIP1 ("ns3::UdpSocketFactory",
-          Address (InetSocketAddress (csmaInterfaces2.GetAddress (NODOS_SEDE2 + 1), port)));
+          Address (InetSocketAddress (csmaInterfaces2.GetAddress (nodosSede2 + 1), port)));
 
   // Creamos las variables aleatorias para los tiempos de on y off
   Ptr<ExponentialRandomVariable> tonExponencial = CreateObject<ExponentialRandomVariable> ();
@@ -173,7 +174,7 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
 
   NodeContainer clientes2;
 
-  for (uint32_t i = 1; i <= NODOS_SEDE2; i++)
+  for (uint32_t i = 1; i <= nodosSede2; i++)
     clientes2.Add(csmaNodes2.Get(i));
 
   //Instalamos la aplicación On/Off en todos y cada uno de 
@@ -197,13 +198,13 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
   for (uint32_t j = 1; j <= nCsma; j++)
   {
     //Aprovechamos para cambiar el numero maximo de reintentos de tx.
-    csmaDevices1.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 8);
+    csmaDevices1.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 16);
   }
 
-    for (uint32_t j = 1; j <= NODOS_SEDE2; j++)
+    for (uint32_t j = 1; j <= nodosSede2; j++)
   {
     //Aprovechamos para cambiar el numero maximo de reintentos de tx.
-    csmaDevices2.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 8);
+    csmaDevices2.Get(j)->GetObject<CsmaNetDevice>()->SetBackoffParams (Time ("1us"), 10, 1000, 10, 16);
   }
 
   observador.SetTamPkt(sizePkt);
@@ -219,6 +220,6 @@ NS_LOG_FUNCTION(nCsma << ton << toff << sizePkt << dataRate << csma_prob_error_b
 
   NS_LOG_INFO("Retardo de transmisión medio: " <<  retardo << "ms");
   NS_LOG_INFO("Porcentaje de paquetes perdidos: " << porcentaje << "%");
-  NS_LOG_INFO("jitter medio: " << jitter << "ms");
+  NS_LOG_INFO("Jitter medio: " << jitter << "ms");
 
 }
