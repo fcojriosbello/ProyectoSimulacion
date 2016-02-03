@@ -4,7 +4,7 @@
 
 using namespace ns3;
 
-#define NUM_REINTENTOS 8
+#define NUM_REINTENTOS 9
 
 //Simulación simple para el servicio VoIP usando CSMA
 void
